@@ -6,7 +6,6 @@
 
 typedef struct grid_t grid_t;
 typedef struct particle_t particle_t;
-typedef enum material_type material_type;
 typedef void (*update_funcptr)(grid_t *, unsigned int, unsigned int);
 
 struct grid_t
@@ -26,12 +25,12 @@ struct particle_t
     update_funcptr update_func;
 };
 
-enum material_type
+typedef enum material_type
 {
     SPECIES_EMPTY = 0,
     SPECIES_SAND,
     SPECIES_COUNT
-};
+} material_type;
 
 grid_t * new_empty_grid(void);
 
@@ -55,6 +54,9 @@ void remove_particle(grid_t *grid, unsigned int x, unsigned int y);
 void swap_particles(grid_t *grid, unsigned int x1, unsigned int y1,
                     unsigned int x2, unsigned int y2);
 
+void particle_line(grid_t *grid, unsigned int x1, unsigned int y1,
+                   unsigned int x2, unsigned int y2, material_type m);
+
 bool is_empty(particle_t *particle);
 
 bool is_empty_pos(grid_t *grid, unsigned int x, unsigned int y);
@@ -65,6 +67,8 @@ int
 main(void)
 {
     unsigned int x = 0, y = 0;
+    unsigned int prev_pos[2] = {0, 0};
+    unsigned int curr_pos[2] = {0, 0};
     grid_t *grid = new_grid(512, 512);
     particle_t *cur_particle = NULL;
 
@@ -72,25 +76,33 @@ main(void)
     SetTargetFPS(60);
 
     while (!WindowShouldClose()) {
+        curr_pos[0] = GetMouseX();
+        curr_pos[1] = 511 - GetMouseY();
+
         if (IsMouseButtonDown(MOUSE_BUTTON_LEFT)) {
-            add_particle(grid, GetMouseX(), GetMouseY(), SPECIES_SAND);
+            /*particle_line(grid, prev_pos[0], prev_pos[1], curr_pos[0],*/
+                          /*curr_pos[1], SPECIES_SAND);*/
+            add_particle(grid, curr_pos[0], curr_pos[1], SPECIES_SAND);
         }
 
         BeginDrawing();
         {
-            ClearBackground(RAYWHITE);
+            ClearBackground(BLACK);
             for (y = 0; y < 512; y++) {
                 for (x = 0; x < 512; x++) {
                     cur_particle = get_particle(grid, x, y);
+                    DrawPixel(x, 511 - y, cur_particle->color);
                     if (!is_empty(cur_particle)) {
                         cur_particle->update_func(grid, x, y);
                     }
-                    DrawPixel(x + 1, 512 - y, cur_particle->color);
                 }
             }
             DrawFPS(0, 0);
         }
         EndDrawing();
+
+        prev_pos[0] = curr_pos[0];
+        prev_pos[1] = curr_pos[1];
     }
 
     destroy_grid(grid);
@@ -186,6 +198,7 @@ get_particle(grid_t *grid, unsigned int x, unsigned int y)
     return &grid->arr[y * grid->width + x];
 }
 
+/* Yeah, this is a little borked rn. Probably shouldn't use it */
 void
 set_particle(grid_t *grid, unsigned int x, unsigned int y, particle_t *p)
 {
@@ -195,38 +208,42 @@ set_particle(grid_t *grid, unsigned int x, unsigned int y, particle_t *p)
 void
 add_particle(grid_t *grid, unsigned int x, unsigned int y, unsigned int id)
 {
-    particle_t part;
-    
+    unsigned int index = y * grid->width + x;
+
     if (!is_empty_pos(grid, x, y)) { return; }
 
-    part.id = id;
-    part.velocity = (Vector2){0, 0};
-    part.has_been_updated = false;
+    grid->arr[index].id = id;
+    grid->arr[index].velocity = (Vector2){0.0f, 0.0f};
+    grid->arr[index].has_been_updated = false;
 
     /* TODO: Update this with correct lifetimes */
     switch (id) {
         case SPECIES_SAND:
-            part.life_time = 0.0f;
-            part.color = YELLOW;
-            part.update_func = update_sand;
+            grid->arr[index].life_time = 0.0f;
+            grid->arr[index].color = YELLOW;
+            grid->arr[index].update_func = update_sand;
             break;
         default:
+            grid->arr[index].life_time = 0.0f;
+            grid->arr[index].color = BLANK;
+            grid->arr[index].update_func = NULL;
             break;
     }
-    set_particle(grid, x, y, &part);
 }
 
 void
-remove_particle(grid_t *grid, unsigned int x, unsigned int y) {
-    particle_t part = {
-        SPECIES_EMPTY,
-        0.0f,
-        (Vector2){0.0f, 0.0f},
-        BLANK,
-        false,
-        NULL
-    };
-    set_particle(grid, x, y, &part);
+remove_particle(grid_t *grid, unsigned int x, unsigned int y)
+{
+    unsigned int index = y * grid->width + x;
+
+    if (is_empty_pos(grid, x,  y)) { return; }
+
+    grid->arr[index].id = SPECIES_EMPTY;
+    grid->arr[index].velocity = (Vector2){0.0f, 0.0f};
+    grid->arr[index].has_been_updated = false;
+    grid->arr[index].life_time = 0.0f;
+    grid->arr[index].color = BLANK;
+    grid->arr[index].update_func = NULL;
 }
 
 void
@@ -236,6 +253,26 @@ swap_particles(grid_t *grid, unsigned int x1, unsigned int y1, unsigned int x2,
     particle_t temp = grid->arr[y1 * grid->width + x1];
     grid->arr[y1 * grid->width + x1] = grid->arr[y2 * grid->width + x2];
     grid->arr[y2 * grid->width + x2] = temp;
+}
+
+void
+particle_line(grid_t *grid, unsigned int x1, unsigned int y1, unsigned int x2,
+              unsigned int y2, material_type m)
+{
+    int dx = x2 - x1;
+    int dy = y2 - y1;
+    int D = 2 * dy - dx;
+    int y = y1;
+    int x = 0;
+
+    for (x = x1; x < (int)x2; x++) {
+        add_particle(grid, x, y, m);
+        if (D > 0) {
+            y++;
+            D -= 2 * dx;
+        }
+        D += 2 * dy;
+    }
 }
 
 bool
