@@ -2,7 +2,6 @@
 #include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <string.h>
 
 /**
  * @note ALL x- and y-coordinates in function definitions refer to the particle
@@ -43,12 +42,19 @@ struct grid_t
  * actual particle type, but rather a support enum to tell us how many particle
  * types are already defined. Because the enum starts at 0, COUNT will always
  * contain the number of non-empty particles currently defined
+ *
+ * Whenever you add a new particle, do the following:
+ * 1. Create a new material type
+ * 2. Create a new update function
+ * 3. Create a new entry within add_particle
  */
 typedef enum material_type
 {
     MAT_EMPTY = 0,
     MAT_SAND,
     MAT_WATER,
+    MAT_SMOKE,
+    MAT_OIL,
     MAT_COUNT
 } material_type;
 
@@ -158,6 +164,24 @@ particle_t *get_particle(grid_t *grid, int x, int y);
  * @param p The particle whose data is set into the array
  */
 void set_particle(grid_t *grid, int x, int y, particle_t *p);
+
+/**
+ * Gets the material type of a particle
+ *
+ * @param p The particle
+ * @return The material type of the particle
+ */
+material_type get_particle_type(particle_t *p);
+
+/**
+ * Gets the material type of a particle at the input coordinates
+ *
+ * @param grid The grid of particles
+ * @param x The x-coordinate in the particle array
+ * @param y The y-coordinate in the particle array
+ * @return The material type of the particle
+ */
+material_type get_particle_type_pos(grid_t *grid, int x, int y);
 
 /**
  * Adds a new particle of type m into the array at the input coordinates
@@ -331,6 +355,24 @@ void update_sand(grid_t *grid, int x, int y);
 void update_water(grid_t *grid, int x, int y);
 
 /**
+ * The update function for smoke particles
+ *
+ * @param grid The grid of particles
+ * @param x The x-coordinate in the particle array of the smoke
+ * @param y The y-coordinate in the particle array of the smoke
+ */
+void update_smoke(grid_t *grid, int x, int y);
+
+/**
+ * The update function for oil particles
+ *
+ * @param grid The grid of particles
+ * @param x The x-coordinate in the particle array of the oil
+ * @param y The y-coordinate in the particle array of the oil
+ */
+void update_oil(grid_t *grid, int x, int y);
+
+/**
  * Sets the current drawing material to the next type
  *
  * @param m The current material
@@ -358,7 +400,7 @@ main(void)
     particle_t *cur_particle = NULL;
 
     InitWindow(scr_w, scr_h, "Falling Sand");
-    SetTargetFPS(165);
+    SetTargetFPS(60);
 
     while (!WindowShouldClose()) {
         curr_pos[0] = GetMouseX();
@@ -387,9 +429,11 @@ main(void)
                           curr_pos[1], MAT_EMPTY);
         }
 
+        if (IsKeyPressed(KEY_C)) { clear_grid(grid); }
+
         BeginDrawing();
         {
-            ClearBackground(BLACK);
+            ClearBackground((Color){209, 209, 209, 255});
 
             /**
              * @note Two separate loops are used for grid updates. One for the
@@ -530,6 +574,23 @@ set_particle(grid_t *grid, int x, int y, particle_t *p)
     grid->arr[index].update_func = p->update_func;
 }
 
+material_type
+get_particle_type(particle_t *p)
+{
+    return p->mat_type;
+}
+
+material_type
+get_particle_type_pos(grid_t *grid, int x, int y)
+{
+    /* TODO: Fix this */
+    if (x < 0 || x >= grid->width || y < 0 || y >= grid->height) {
+        return MAT_EMPTY;
+    }
+
+    return get_particle(grid, x, y)->mat_type;
+}
+
 void
 add_particle(grid_t *grid, int x, int y, material_type m)
 {
@@ -554,6 +615,19 @@ add_particle(grid_t *grid, int x, int y, material_type m)
             part.life_time = 0.0f;
             part.color = SKYBLUE;
             part.update_func = update_water;
+            break;
+        case MAT_SMOKE:
+            part.elem_type = ELEM_GAS;
+            part.life_time = 0.0f;
+            part.color = GRAY;
+            part.update_func = update_smoke;
+            break;
+        case MAT_OIL:
+            part.elem_type = ELEM_LIQUID;
+            part.life_time = 0.0f;
+            part.color = BLACK;
+            part.update_func = update_oil;
+            break;
         default:
             break;
     }
@@ -780,23 +854,87 @@ update_water(grid_t *grid, int x, int y)
     particle_t *cur_particle = get_particle(grid, x, y);
 
     if (is_pos_empty(grid, x, below)
-        || is_pos_gas(grid, x, below)) {
+        || is_pos_gas(grid, x, below)
+        || get_particle_type_pos(grid, x, below) == MAT_OIL) {
         swap_particles(grid, x, y, x, below);
     }
     else if (is_pos_empty(grid, left, below)
-             || is_pos_gas(grid, left, below)) {
+             || is_pos_gas(grid, left, below)
+             || get_particle_type_pos(grid, left, below) == MAT_OIL) {
         swap_particles(grid, x, y, left, below);
     }
     else if (is_pos_empty(grid, right, below)
-             || is_pos_gas(grid, right, below)) {
+             || is_pos_gas(grid, right, below)
+             || get_particle_type_pos(grid, right, below) == MAT_OIL) {
         swap_particles(grid, x, y, right, below);
     }
     else if (is_pos_empty(grid, left, y)
-             || is_pos_gas(grid, left, y)) {
+             || is_pos_gas(grid, left, y)
+             || get_particle_type_pos(grid, left, y) == MAT_OIL) {
         swap_particles(grid, x, y, left, y);
     }
     else if (is_pos_empty(grid, right, y)
-             || is_pos_gas(grid, right, y)) {
+             || is_pos_gas(grid, right, y)
+             || get_particle_type_pos(grid, right, y) == MAT_OIL) {
+        swap_particles(grid, x, y, right, y);
+    }
+
+    cur_particle->has_been_updated = true;
+}
+
+void
+update_smoke(grid_t *grid, int x, int y)
+{
+    int above = y + 1;
+    int left = x - 1;
+    int right = x + 1;
+    particle_t *cur_particle = get_particle(grid, x, y);
+
+    if (y == grid->height) {
+        cur_particle->has_been_updated = true;
+        return;
+    }
+
+    if (is_pos_empty(grid, x, above)) {
+        swap_particles(grid, x, y, x, above);
+    }
+    else if (is_pos_empty(grid, left, above)) {
+        swap_particles(grid, x, y, left, above);
+    }
+    else if (is_pos_empty(grid, right, above)) {
+        swap_particles(grid, x, y, right, above);
+    }
+    else if (is_pos_empty(grid, left, y)) {
+        swap_particles(grid, x, y, left, y);
+    }
+    else if (is_pos_empty(grid, right, y)) {
+        swap_particles(grid, x, y, right, y);
+    }
+
+    cur_particle->has_been_updated = true;
+}
+
+void
+update_oil(grid_t *grid, int x, int y)
+{
+    int below = y - 1;
+    int left = x - 1;
+    int right = x + 1;
+    particle_t *cur_particle = get_particle(grid, x, y);
+
+    if (is_pos_empty(grid, x, below)) {
+        swap_particles(grid, x, y, x, below);
+    }
+    else if (is_pos_empty(grid, left, below)) {
+        swap_particles(grid, x, y, left, below);
+    }
+    else if (is_pos_empty(grid, right, below)) {
+        swap_particles(grid, x, y, right, below);
+    }
+    else if (is_pos_empty(grid, left, y)) {
+        swap_particles(grid, x, y, left, y);
+    }
+    else if (is_pos_empty(grid, right, y)) {
         swap_particles(grid, x, y, right, y);
     }
 
