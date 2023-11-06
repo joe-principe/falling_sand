@@ -16,7 +16,14 @@ typedef void (*update_funcptr)(grid_t *, int, int);
 
 /**
  * The particle grid. The array is a one-dimensional array of particles.
+ * The reason for making the grid one-dimensional is because 1D heap arrays are
+ * contiguous where as 2D+ heap arrays are not guaranteed to be contiguous. This
+ * is mostly to speed up array access.
+ *
  * The bottom left of the grid is (0, 0) and the top right is (width, height).
+ * The reason for doing this is because grid updates are done from the bottom
+ * up, so it made sense for the bottom left to be (0, 0)
+ *
  * Indexing into the array is done with the formula index = y * width + x
  *
  * @note Raylib does screen coordinates with (0, 0) as the top left and
@@ -30,16 +37,13 @@ struct grid_t
     particle_t *arr;
 };
 
-struct particle_t
-{
-    unsigned int id;
-    float life_time;
-    Vector2 velocity;
-    Color color;
-    bool has_been_updated;
-    update_funcptr update_func;
-};
-
+/**
+ * Materials contain the actual particle type (eg, sand, water, etc.)
+ * New particles can be added anywhere between EMPTY and COUNT. COUNT isn't an
+ * actual particle type, but rather a support enum to tell us how many particle
+ * types are already defined. Because the enum starts at 0, COUNT will always
+ * contain the number of non-empty particles currently defined
+ */
 typedef enum material_type
 {
     MAT_EMPTY = 0,
@@ -49,8 +53,52 @@ typedef enum material_type
 } material_type;
 
 /**
+ * Elements contain the particle behavior class
+ * Empty is obvious, static is a particle that doesn't fall, solid falls and
+ * is generally denser than other elements, liquid falls and is denser than
+ * solid but less dense than gas, gas rises and is the least dense.
+ *
+ * These are used for checking how two particles should interact in general.
+ * Specific interactions will have to be handled on a specific basis.
+ */
+typedef enum element_type
+{
+    ELEM_EMPTY = 0,
+    ELEM_STATIC,
+    ELEM_SOLID,
+    ELEM_LIQUID,
+    ELEM_GAS,
+    ELEM_COUNT
+} element_type;
+
+/**
+ * Most of these properties are pretty self explanatory. has_been_updated is for
+ * checking if the current particle has been swapped with another particle in
+ * the current frame (eg, if a water particle moves right, it'll swap with the
+ * empty space. Since it's now next to be checked (again), we avoid re-updating
+ * it by checking if it's been updated)
+ *
+ * The update function pointer allows us to have any number of particle types
+ * without having to create new cases in a switch statement whenever we want to
+ * add something. We simply have to call the current particle's function 
+ * whenever we update it.
+ */
+struct particle_t
+{
+    material_type mat_type;
+    element_type elem_type;
+    float life_time;
+    Vector2 velocity;
+    Color color;
+    bool has_been_updated;
+    update_funcptr update_func;
+};
+
+/**
  * Creates a new grid with no particle array (init_grid must be used to create
  * the array)
+ * @note I don't use this anywhere in the code just yet, but the idea behind it
+ * is creating a new, uninitialized grid for later use within code
  *
  * @return The new grid
  */
@@ -67,7 +115,7 @@ grid_t *new_empty_grid(void);
 grid_t *new_grid(int width, int height);
 
 /**
- * Initializes a grid with no particle array (used after new_empty_grid)
+ * Initializes a grid that has no particle array (used after new_empty_grid)
  *
  * @param grid The grid to initialize
  * @param width The width of the grid
@@ -112,17 +160,18 @@ particle_t *get_particle(grid_t *grid, int x, int y);
 void set_particle(grid_t *grid, int x, int y, particle_t *p);
 
 /**
- * Adds a new particle of type "id" into the array at the input coordinates
+ * Adds a new particle of type m into the array at the input coordinates
  *
  * @param grid The grid of particles
  * @param x The x-coordinate in the particle array
  * @param y The y-coordinate in the particle array
- * @param id The particle type
+ * @param m The particle type
  */
-void add_particle(grid_t *grid, int x, int y, unsigned int id);
+void add_particle(grid_t *grid, int x, int y, material_type m);
 
 /**
- * Removes a particle in the array at the input coordinates
+ * Removes a particle in the array at the input coordinates. Used when erasing
+ * particles with right-click
  * @note This really just sets the particle type to "Empty"
  *
  * @param grid The grid of particles
@@ -133,6 +182,8 @@ void remove_particle(grid_t *grid, int x, int y);
 
 /**
  * Swaps two particles in the particle array
+ * @note Use this whenever you want a particle to move. Non-empty particles
+ * "swap" places with empty ones to give them the appearance of moving
  *
  * @param grid The grid of particles
  * @param x1 The x-coordinate of the first particle
@@ -145,6 +196,9 @@ void swap_particles(grid_t *grid, int x1, int y1, int x2, int y2);
 /**
  * Adds or removes a line of particles of type m from (x1, y1) to (x2, y2)
  * @note Removal is only done if the particle type is "Empty"
+ * @note A line of particles is drawn to enable continuous particle drawing.
+ * Otherwise, only one particle is drawn per frame and they are widely spread
+ * out if the mouse is moved around rapidly.
  *
  * @param grid The grid of particles
  * @param x1 The starting x-coordinate
@@ -157,24 +211,106 @@ void particle_line(grid_t *grid, int x1, int y1, int x2, int y2,
                    material_type m);
 
 /**
- * Checks if the particle type is "Empty"
+ * Checks if the particle type is "EMPTY"
  *
  * @param particle The particle to check
  * @return A boolean indicating if the particle is empty
  */
-bool is_empty(particle_t *particle);
+bool is_particle_empty(particle_t *particle);
 
 /**
- * Checks if the particle type in the array at the input coordinates is "Empty"
+ * Checks if the particle's element type is "STATIC"
+ *
+ * @param particle The particle to check
+ * @return A boolean indicating if the particle is static
+ */
+bool is_particle_static(particle_t *particle);
+
+/**
+ * Checks if the particle's element type is "SOLID"
+ *
+ * @param particle The particle to check
+ * @return A boolean indicating if the particle is solid
+ */
+bool is_particle_solid(particle_t *particle);
+
+/**
+ * Checks if the particle's element type is "LIQUID"
+ *
+ * @param particle The particle to check
+ * @return A boolean indicating if the particle is liquid
+ */
+bool is_particle_liquid(particle_t *particle);
+
+/**
+ * Checks if the particle's element type is "GAS"
+ *
+ * @param particle The particle to check
+ * @return A boolean indicating if the particle is gas
+ */
+bool is_particle_gas(particle_t *particle);
+
+/**
+ * Checks if the particle type in the array at the input coordinates is "EMPTY"
  * @note This function does bounds checking. Coordinates outside of the grid
- * (ie, less than 0 or greater than width/height) are considered "occupied"
+ * (ie, less than 0 or greater than width/height) are considered "occupied".
+ * This is so the particles don't flow outside the bounds of the game window
  *
  * @param grid The grid of particles
  * @param x The x-coordinate in the particle array
  * @param y The y-coordinate in the particle array
  * @return A boolean indicating if the particle is empty
  */
-bool is_empty_pos(grid_t *grid, int x, int y);
+bool is_pos_empty(grid_t *grid, int x, int y);
+
+/**
+ * Checks if the particle type in the array at the input coordinates is "STATIC"
+ *
+ * @param grid The grid of particles
+ * @param x The x-coordinate in the particle array
+ * @param y The y-coordinate in the particle array
+ * @return A boolean indicating if the particle is static
+ */
+bool is_pos_static(grid_t *grid, int x, int y);
+
+/**
+ * Checks if the particle type in the array at the input coordinates is "SOLID"
+ *
+ * @param grid The grid of particles
+ * @param x The x-coordinate in the particle array
+ * @param y The y-coordinate in the particle array
+ * @return A boolean indicating if the particle is solid
+ */
+bool is_pos_solid(grid_t *grid, int x, int y);
+
+/**
+ * Checks if the particle type in the array at the input coordinates is "LIQUID"
+ *
+ * @param grid The grid of particles
+ * @param x The x-coordinate in the particle array
+ * @param y The y-coordinate in the particle array
+ * @return A boolean indicating if the particle is liquid
+ */
+bool is_pos_liquid(grid_t *grid, int x, int y);
+
+/**
+ * Checks if the particle type in the array at the input coordinates is "GAS"
+ *
+ * @param grid The grid of particles
+ * @param x The x-coordinate in the particle array
+ * @param y The y-coordinate in the particle array
+ * @return A boolean indicating if the particle is gas
+ */
+bool is_pos_gas(grid_t *grid, int x, int y);
+
+/**
+ * The update function for empty particles.
+ *
+ * @param grid The grid of particles
+ * @param x The x-coordinate in the particle array
+ * @param y The y-coordinate in the particle array
+ */
+void update_empty(grid_t *grid, int x, int y);
 
 /**
  * The update function for sand particles. Moves the sand down if possible
@@ -186,16 +322,6 @@ bool is_empty_pos(grid_t *grid, int x, int y);
 void update_sand(grid_t *grid, int x, int y);
 
 /**
- * The update function for empty particles.
- * @note This simply returns
- *
- * @param grid The grid of particles
- * @param x The x-coordinate in the particle array
- * @param y The y-coordinate in the particle array
- */
-void update_empty(grid_t *grid, int x, int y);
-
-/**
  * The update function for water particles
  *
  * @param grid The grid of particles
@@ -205,7 +331,7 @@ void update_empty(grid_t *grid, int x, int y);
 void update_water(grid_t *grid, int x, int y);
 
 /**
- * Sets the current material to the next type
+ * Sets the current drawing material to the next type
  *
  * @param m The current material
  * @return The new material type
@@ -213,7 +339,7 @@ void update_water(grid_t *grid, int x, int y);
 material_type next_material(material_type m);
 
 /**
- * Sets the current material to the previous type
+ * Sets the current drawing material to the previous type
  *
  * @param m The current material
  * @return The new material type
@@ -223,19 +349,20 @@ material_type prev_material(material_type m);
 int 
 main(void)
 {
-    int x = 0, y = 0, cursor_size = 1;
+    const int scr_w = 512, scr_h = 512;
+    int x = 0, y = 0;
     int prev_pos[2] = {0, 0};
     int curr_pos[2] = {0, 0};
     material_type cur_mat = MAT_SAND;
-    grid_t *grid = new_grid(512, 512);
+    grid_t *grid = new_grid(scr_w, scr_h);
     particle_t *cur_particle = NULL;
 
-    InitWindow(512, 512, "Falling Sand");
-    SetTargetFPS(60);
+    InitWindow(scr_w, scr_h, "Falling Sand");
+    SetTargetFPS(165);
 
     while (!WindowShouldClose()) {
         curr_pos[0] = GetMouseX();
-        curr_pos[1] = 511 - GetMouseY();
+        curr_pos[1] = scr_h - 1 - GetMouseY();
 
         /*if (GetMouseWheelMoveV().y > 0) {*/
             /* Increase the drawing size */
@@ -263,13 +390,31 @@ main(void)
         BeginDrawing();
         {
             ClearBackground(BLACK);
-            for (y = 0; y < 512; y++) {
-                for (x = 0; x < 512; x++) {
+
+            /**
+             * @note Two separate loops are used for grid updates. One for the
+             * actual particle interactions and a second for drawing particles.
+             * This is for simplicity because moving particles then drawing them
+             * was hard logic that I'm too dumb to figure out.
+             * Until I figure out how to update AND draw within the same loop
+             * again, this will have to be two loops
+             */
+            for (y = 0; y < scr_h; y++) {
+                for (x = 0; x < scr_w; x++) {
                     cur_particle = get_particle(grid, x, y);
-                    DrawPixel(x, 511 - y, cur_particle->color);
+                    if (cur_particle->has_been_updated) { continue; }
                     cur_particle->update_func(grid, x, y);
                 }
             }
+
+            for (y = 0; y < 512; y++) {
+                for (x = 0; x < 512; x++) {
+                    cur_particle = get_particle(grid, x, y);
+                    cur_particle->has_been_updated = false;
+                    DrawPixel(x, 511 - y, cur_particle->color);
+                }
+            }
+
             DrawFPS(0, 0);
         }
         EndDrawing();
@@ -299,7 +444,6 @@ new_empty_grid(void)
 grid_t *
 new_grid(int width, int height)
 {
-    int i;
     grid_t *grid = malloc(sizeof(*grid));
 
     grid->width = width;
@@ -312,14 +456,7 @@ new_grid(int width, int height)
         exit(EXIT_FAILURE);
     }
 
-    for (i = 0; i < width * height; i++) {
-        grid->arr[i].id = MAT_EMPTY;
-        grid->arr[i].life_time = 0.0f;
-        grid->arr[i].velocity = (Vector2){0.0f, 0.0f};
-        grid->arr[i].color = BLANK;
-        grid->arr[i].has_been_updated = false;
-        grid->arr[i].update_func = update_empty;
-    }
+    clear_grid(grid);
 
     return grid;
 }
@@ -327,8 +464,6 @@ new_grid(int width, int height)
 void
 init_grid(grid_t *grid, int width, int height)
 {
-    int i;
-
     grid->width = width;
     grid->height = height;
     grid->arr = calloc(width * height, sizeof(*grid->arr));
@@ -339,14 +474,7 @@ init_grid(grid_t *grid, int width, int height)
         exit(EXIT_FAILURE);
     }
 
-    for (i = 0; i < width * height; i++) {
-        grid->arr[i].id = MAT_EMPTY;
-        grid->arr[i].life_time = 0.0f;
-        grid->arr[i].velocity = (Vector2){0.0f, 0.0f};
-        grid->arr[i].color = BLANK;
-        grid->arr[i].has_been_updated = false;
-        grid->arr[i].update_func = update_empty;
-    }
+    clear_grid(grid);
 }
 
 void
@@ -363,10 +491,19 @@ void
 clear_grid(grid_t *grid)
 {
     int x, y;
+    particle_t empty_particle = {
+        MAT_EMPTY,
+        ELEM_EMPTY,
+        0.0f,
+        (Vector2){0.0f, 0.0f},
+        BLANK,
+        false,
+        update_empty
+    };
 
     for (y = 0; y < grid->height; y++) {
         for (x = 0; x < grid->width; x++) {
-            remove_particle(grid, x, y);
+            set_particle(grid, x, y, &empty_particle);
         }
     }
 }
@@ -384,7 +521,8 @@ set_particle(grid_t *grid, int x, int y, particle_t *p)
 
     if (index < 0 || index > grid->width * grid->height) { return; }
 
-    grid->arr[index].id = p->id;
+    grid->arr[index].mat_type = p->mat_type;
+    grid->arr[index].elem_type = p->elem_type;
     grid->arr[index].velocity = p->velocity;
     grid->arr[index].has_been_updated = p->has_been_updated;
     grid->arr[index].life_time = p->life_time;
@@ -393,24 +531,26 @@ set_particle(grid_t *grid, int x, int y, particle_t *p)
 }
 
 void
-add_particle(grid_t *grid, int x, int y, unsigned int id)
+add_particle(grid_t *grid, int x, int y, material_type m)
 {
     particle_t part;
 
-    if (!is_empty_pos(grid, x, y)) { return; }
+    if (!is_pos_empty(grid, x, y)) { return; }
 
-    part.id = id;
+    part.mat_type = m;
     part.velocity = (Vector2){0.0f, 0.0f};
     part.has_been_updated = false;
 
     /* TODO: Update this with correct lifetimes */
-    switch (id) {
+    switch (m) {
         case MAT_SAND:
+            part.elem_type = ELEM_SOLID;
             part.life_time = 0.0f;
             part.color = YELLOW;
             part.update_func = update_sand;
             break;
         case MAT_WATER:
+            part.elem_type = ELEM_LIQUID;
             part.life_time = 0.0f;
             part.color = SKYBLUE;
             part.update_func = update_water;
@@ -423,26 +563,33 @@ add_particle(grid_t *grid, int x, int y, unsigned int id)
 void
 remove_particle(grid_t *grid, int x, int y)
 {
-    particle_t part;
+    particle_t empty_particle;
 
-    if (is_empty_pos(grid, x,  y)) { return; }
+    if (is_pos_empty(grid, x,  y)) { return; }
 
-    part.id = MAT_EMPTY;
-    part.velocity = (Vector2){0.0f, 0.0f};
-    part.has_been_updated = false;
-    part.life_time = 0.0f;
-    part.color = BLANK;
-    part.update_func = update_empty;
+    empty_particle.mat_type = MAT_EMPTY;
+    empty_particle.elem_type = ELEM_EMPTY;
+    empty_particle.life_time = 0.0f;
+    empty_particle.velocity = (Vector2){0.0f, 0.0f};
+    empty_particle.color = BLANK;
+    empty_particle.has_been_updated = false;
+    empty_particle.update_func = update_empty;
 
-    set_particle(grid, x, y, &part);
+    set_particle(grid, x, y, &empty_particle);
 }
 
 void
 swap_particles(grid_t *grid, int x1, int y1, int x2, int y2)
 {
-    particle_t temp = grid->arr[y1 * grid->width + x1];
-    grid->arr[y1 * grid->width + x1] = grid->arr[y2 * grid->width + x2];
-    grid->arr[y2 * grid->width + x2] = temp;
+    int index1 = y1 * grid->width + x1;
+    int index2 = y2 * grid->width + x2;
+
+    particle_t temp = grid->arr[index1];
+    grid->arr[index1] = grid->arr[index2];
+    grid->arr[index2] = temp;
+
+    grid->arr[index1].has_been_updated = true;
+    grid->arr[index2].has_been_updated = true;
 }
 
 void
@@ -455,6 +602,14 @@ particle_line(grid_t *grid, int x1, int y1, int x2, int y2, material_type m)
     int error = dx + dy;
     int e2;
 
+    /** 
+     * The if-else checks containing the while loops used to be within the
+     * loops. The were moved out here as a little bit of optimization because
+     * the check only needs to be done once to decide if a particle is getting
+     * added or removed. Having it within the loop made it check ever iteration,
+     * which was largely unnecessary. This does make the code uglier, but who
+     * cares
+     */
     if (m == MAT_EMPTY) {
         while (1) {
             remove_particle(grid, x1, y1);
@@ -499,18 +654,89 @@ particle_line(grid_t *grid, int x1, int y1, int x2, int y2, material_type m)
 }
 
 bool
-is_empty(particle_t *particle)
+is_particle_empty(particle_t *particle)
 {
-    return particle->id == MAT_EMPTY;
+    return particle->mat_type == MAT_EMPTY;
+}
+
+bool 
+is_particle_static(particle_t *particle)
+{
+    return particle->elem_type == ELEM_STATIC;
+}
+
+bool 
+is_particle_solid(particle_t *particle)
+{
+    return particle->elem_type == ELEM_SOLID;
+}
+
+bool 
+is_particle_liquid(particle_t *particle)
+{
+    return particle->elem_type == ELEM_LIQUID;
+}
+
+bool 
+is_particle_gas(particle_t *particle)
+{
+    return particle->elem_type == ELEM_GAS;
 }
 
 bool
-is_empty_pos(grid_t *grid, int x, int y)
+is_pos_empty(grid_t *grid, int x, int y)
 {
     if (x < 0 || x >= grid->width || y < 0 || y >= grid->height) {
         return false;
     }
-    return grid->arr[y * grid->width + x].id == MAT_EMPTY;
+
+    return is_particle_empty(get_particle(grid, x, y));
+}
+
+bool 
+is_pos_static(grid_t *grid, int x, int y)
+{
+    if (x < 0 || x >= grid->width || y < 0 || y >= grid->height) {
+        return false;
+    }
+
+    return is_particle_static(get_particle(grid, x, y));
+}
+
+bool 
+is_pos_solid(grid_t *grid, int x, int y)
+{
+    if (x < 0 || x >= grid->width || y < 0 || y >= grid->height) {
+        return false;
+    }
+
+    return is_particle_solid(get_particle(grid, x, y));
+}
+
+bool 
+is_pos_liquid(grid_t *grid, int x, int y)
+{
+    if (x < 0 || x >= grid->width || y < 0 || y >= grid->height) {
+        return false;
+    }
+
+    return is_particle_liquid(get_particle(grid, x, y));
+}
+
+bool 
+is_pos_gas(grid_t *grid, int x, int y)
+{
+    if (x < 0 || x >= grid->width || y < 0 || y >= grid->height) {
+        return false;
+    }
+
+    return is_particle_gas(get_particle(grid, x, y));
+}
+
+void update_empty(grid_t *grid, int x, int y)
+{
+    get_particle(grid, x, y)->has_been_updated = true;
+    return;
 }
 
 void
@@ -526,22 +752,23 @@ update_sand(grid_t *grid, int x, int y)
         return;
     }
     
-    if (is_empty_pos(grid, x, below)) {
+    if (is_pos_empty(grid, x, below)
+        || is_pos_liquid(grid, x, below)
+        || is_pos_gas(grid, x, below)) {
         swap_particles(grid, x, y, x, below);
     }
-    else if (is_empty_pos(grid, left, below)) {
+    else if (is_pos_empty(grid, left, below)
+             || is_pos_liquid(grid, left, below)
+             || is_pos_gas(grid, left, below)) {
         swap_particles(grid, x, y, left, below);
     }
-    else if (is_empty_pos(grid, right, below)) {
+    else if (is_pos_empty(grid, right, below)
+             || is_pos_liquid(grid, right, below)
+             || is_pos_gas(grid, right, below)) {
         swap_particles(grid, x, y, right, below);
     }
 
     cur_particle->has_been_updated = true;
-}
-
-void update_empty(grid_t *grid, int x, int y)
-{
-    return;
 }
 
 void 
@@ -552,24 +779,24 @@ update_water(grid_t *grid, int x, int y)
     int right = x + 1;
     particle_t *cur_particle = get_particle(grid, x, y);
 
-    if (y == 0) {
-        cur_particle->has_been_updated = true;
-        return;
-    }
-
-    if (is_empty_pos(grid, x, below)) {
+    if (is_pos_empty(grid, x, below)
+        || is_pos_gas(grid, x, below)) {
         swap_particles(grid, x, y, x, below);
     }
-    else if (is_empty_pos(grid, left, below)) {
+    else if (is_pos_empty(grid, left, below)
+             || is_pos_gas(grid, left, below)) {
         swap_particles(grid, x, y, left, below);
     }
-    else if (is_empty_pos(grid, right, below)) {
+    else if (is_pos_empty(grid, right, below)
+             || is_pos_gas(grid, right, below)) {
         swap_particles(grid, x, y, right, below);
     }
-    else if (is_empty_pos(grid, left, y)) {
+    else if (is_pos_empty(grid, left, y)
+             || is_pos_gas(grid, left, y)) {
         swap_particles(grid, x, y, left, y);
     }
-    else if (is_empty_pos(grid, right, y)) {
+    else if (is_pos_empty(grid, right, y)
+             || is_pos_gas(grid, right, y)) {
         swap_particles(grid, x, y, right, y);
     }
 
@@ -579,7 +806,7 @@ update_water(grid_t *grid, int x, int y)
 material_type 
 next_material(material_type m)
 {
-    if (m == MAT_COUNT - 1) { return m; }
+    if (m == MAT_COUNT - 1) { m = 0; }
 
     return m + 1;
 }
@@ -587,7 +814,7 @@ next_material(material_type m)
 material_type 
 prev_material(material_type m)
 {
-    if (m == 1) { return m; }
+    if (m == 1) { m = MAT_COUNT; }
 
     return m - 1;
 }
