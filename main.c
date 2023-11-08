@@ -47,6 +47,7 @@ struct grid_t
  * 1. Create a new material type
  * 2. Create a new update function
  * 3. Create a new entry within add_particle
+ * 4. Update particle interactions
  */
 typedef enum material_type
 {
@@ -388,15 +389,24 @@ material_type next_material(material_type m);
  */
 material_type prev_material(material_type m);
 
+/**
+ * Gets the color of a material
+ *
+ * @param m The material
+ * @return The color of the material
+ */
+Color get_color_from_mat(material_type m);
+
 int 
 main(void)
 {
-    const int scr_w = 512, scr_h = 512;
+    const int grid_w = 512, grid_h = 512;
+    const int scr_w = 512, scr_h = 576;
     int x = 0, y = 0;
     int prev_pos[2] = {0, 0};
     int curr_pos[2] = {0, 0};
     material_type cur_mat = MAT_SAND;
-    grid_t *grid = new_grid(scr_w, scr_h);
+    grid_t *grid = new_grid(grid_w, grid_h);
     particle_t *cur_particle = NULL;
 
     InitWindow(scr_w, scr_h, "Falling Sand");
@@ -404,7 +414,7 @@ main(void)
 
     while (!WindowShouldClose()) {
         curr_pos[0] = GetMouseX();
-        curr_pos[1] = scr_h - 1 - GetMouseY();
+        curr_pos[1] = grid_h - 1 - GetMouseY();
 
         /*if (GetMouseWheelMoveV().y > 0) {*/
             /* Increase the drawing size */
@@ -443,23 +453,30 @@ main(void)
              * Until I figure out how to update AND draw within the same loop
              * again, this will have to be two loops
              */
-            for (y = 0; y < scr_h; y++) {
-                for (x = 0; x < scr_w; x++) {
+            for (y = 0; y < grid_h; y++) {
+                for (x = 0; x < grid_w; x++) {
                     cur_particle = get_particle(grid, x, y);
                     if (cur_particle->has_been_updated) { continue; }
                     cur_particle->update_func(grid, x, y);
                 }
             }
 
-            for (y = 0; y < 512; y++) {
-                for (x = 0; x < 512; x++) {
+            for (y = 0; y < grid_h; y++) {
+                for (x = 0; x < grid_w; x++) {
                     cur_particle = get_particle(grid, x, y);
                     cur_particle->has_been_updated = false;
-                    DrawPixel(x, 511 - y, cur_particle->color);
+                    DrawPixel(x, grid_w - 1 - y, cur_particle->color);
                 }
             }
 
-            DrawFPS(0, 0);
+            DrawRectangle(0, grid_h, scr_w, scr_h - grid_h, DARKBLUE);
+            DrawFPS(0, grid_h);
+            DrawRectangle(0, 532, 40, 40, get_color_from_mat(cur_mat));
+            DrawRectangle(50, 532, 20, 20, YELLOW);
+            DrawRectangle(80, 532, 20, 20, SKYBLUE);
+            DrawRectangle(110, 532, 20, 20, GRAY);
+            DrawRectangle(140, 532, 20, 20, BLACK);
+
         }
         EndDrawing();
 
@@ -669,6 +686,11 @@ swap_particles(grid_t *grid, int x1, int y1, int x2, int y2)
 void
 particle_line(grid_t *grid, int x1, int y1, int x2, int y2, material_type m)
 {
+    if (x1 > grid->width) { x1 = grid->width; }
+    if (x2 > grid->width) { x2 = grid->width; }
+    if (y1 > grid->height) { y1 = grid->height; }
+    if (y2 > grid->height) { y2 = grid->height; }
+
     int dx = abs(x2 - x1);
     int sx = x1 < x2 ? 1 : -1;
     int dy = -abs(y2 - y1);
@@ -955,5 +977,22 @@ prev_material(material_type m)
     if (m == 1) { m = MAT_COUNT; }
 
     return m - 1;
+}
+
+Color
+get_color_from_mat(material_type m)
+{
+    switch (m) {
+        case MAT_SAND:
+            return YELLOW;
+        case MAT_WATER:
+            return SKYBLUE;
+        case MAT_SMOKE:
+            return GRAY;
+        case MAT_OIL:
+            return BLACK;
+        default:
+            return BLANK;
+    }
 }
 /* EOF */
