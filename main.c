@@ -2,6 +2,7 @@
 #include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <time.h>
 
 /**
  * @note ALL x- and y-coordinates in function definitions refer to the particle
@@ -409,6 +410,8 @@ main(void)
     grid_t *grid = new_grid(grid_w, grid_h);
     particle_t *cur_particle = NULL;
 
+    srand(time(NULL));
+
     InitWindow(scr_w, scr_h, "Falling Sand");
     SetTargetFPS(60);
 
@@ -469,9 +472,10 @@ main(void)
                 }
             }
 
+            /* UI drawing code */
             DrawRectangle(0, grid_h, scr_w, scr_h - grid_h, DARKBLUE);
             DrawFPS(0, grid_h);
-            DrawRectangle(0, 532, 40, 40, get_color_from_mat(cur_mat));
+            DrawRectangle(4, 532, 40, 40, get_color_from_mat(cur_mat));
             DrawRectangle(50, 532, 20, 20, YELLOW);
             DrawRectangle(80, 532, 20, 20, SKYBLUE);
             DrawRectangle(110, 532, 20, 20, GRAY);
@@ -635,7 +639,7 @@ add_particle(grid_t *grid, int x, int y, material_type m)
             break;
         case MAT_SMOKE:
             part.elem_type = ELEM_GAS;
-            part.life_time = 0.0f;
+            part.life_time = 3.0f;
             part.color = GRAY;
             part.update_func = update_smoke;
             break;
@@ -913,6 +917,14 @@ update_smoke(grid_t *grid, int x, int y)
     particle_t *cur_particle = get_particle(grid, x, y);
 
     if (y == grid->height) {
+        cur_particle->has_been_updated = true;
+        return;
+    }
+
+    cur_particle->life_time -= (float)rand() / (float)(RAND_MAX / 0.1f);
+
+    if (cur_particle->life_time <= 0.0f) {
+        remove_particle(grid, x, y);
         cur_particle->has_been_updated = true;
         return;
     }
