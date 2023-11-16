@@ -49,6 +49,7 @@ struct grid_t
  * 2. Create a new update function
  * 3. Create a new entry within add_particle
  * 4. Update particle interactions
+ * 5. Add particle color to get_color_from_mat
  */
 typedef enum material_type
 {
@@ -57,6 +58,9 @@ typedef enum material_type
     MAT_WATER,
     MAT_SMOKE,
     MAT_OIL,
+    MAT_WALL,
+    MAT_WOOD,
+    MAT_FIRE,
     MAT_COUNT
 } material_type;
 
@@ -375,6 +379,33 @@ void update_smoke(grid_t *grid, int x, int y);
 void update_oil(grid_t *grid, int x, int y);
 
 /**
+ * The update function for wall particles
+ *
+ * @param grid The grid of particles
+ * @param x The x-coordinate in the particle array of the wall
+ * @param y The y-coordinate in the particle array of the wall
+ */
+void update_wall(grid_t *grid, int x, int y);
+
+/**
+ * The update function for wood particles
+ *
+ * @param grid The grid of particles
+ * @param x The x-coordinate in the particle array of the wood
+ * @param y The y-coordinate in the particle array of the wood
+ */
+void update_wood(grid_t *grid, int x, int y);
+
+/**
+ * The update function for fire particles
+ *
+ * @param grid The grid of particles
+ * @param x The x-coordinate in the particle array of the fire
+ * @param y The y-coordinate in the particle array of the fire
+ */
+void update_fire(grid_t *grid, int x, int y);
+
+/**
  * Sets the current drawing material to the next type
  *
  * @param m The current material
@@ -446,7 +477,7 @@ main(void)
 
         BeginDrawing();
         {
-            ClearBackground((Color){209, 209, 209, 255});
+            ClearBackground((Color){64, 64, 64, 255});
 
             /**
              * @note Two separate loops are used for grid updates. One for the
@@ -475,12 +506,15 @@ main(void)
             /* UI drawing code */
             DrawRectangle(0, grid_h, scr_w, scr_h - grid_h, DARKBLUE);
             DrawFPS(0, grid_h);
-            DrawRectangle(4, 532, 40, 40, get_color_from_mat(cur_mat));
-            DrawRectangle(50, 532, 20, 20, YELLOW);
-            DrawRectangle(80, 532, 20, 20, SKYBLUE);
-            DrawRectangle(110, 532, 20, 20, GRAY);
-            DrawRectangle(140, 532, 20, 20, BLACK);
-
+            DrawRectangle(  4, grid_h + 20, 40, 40,
+                          get_color_from_mat(cur_mat));
+            DrawRectangle( 50, grid_h + 20, 20, 20, YELLOW);
+            DrawRectangle( 80, grid_h + 20, 20, 20, SKYBLUE);
+            DrawRectangle(110, grid_h + 20, 20, 20, GRAY);
+            DrawRectangle(140, grid_h + 20, 20, 20, BLACK);
+            DrawRectangle(170, grid_h + 20, 20, 20, LIGHTGRAY);
+            DrawRectangle(200, grid_h + 20, 20, 20, (Color){66, 27, 4, 255});
+            DrawRectangle(230, grid_h + 20, 20, 20, RED);
         }
         EndDrawing();
 
@@ -634,7 +668,7 @@ add_particle(grid_t *grid, int x, int y, material_type m)
         case MAT_WATER:
             part.elem_type = ELEM_LIQUID;
             part.life_time = 0.0f;
-            part.color = SKYBLUE;
+            part.color = (Color){102, 191, 255, 128};
             part.update_func = update_water;
             break;
         case MAT_SMOKE:
@@ -648,6 +682,24 @@ add_particle(grid_t *grid, int x, int y, material_type m)
             part.life_time = 0.0f;
             part.color = BLACK;
             part.update_func = update_oil;
+            break;
+        case MAT_WALL:
+            part.elem_type = ELEM_STATIC;
+            part.life_time = 0.0f;
+            part.color = LIGHTGRAY;
+            part.update_func = update_wall;
+            break;
+        case MAT_WOOD:
+            part.elem_type = ELEM_STATIC;
+            part.life_time = 7.5f;
+            part.color = (Color){66, 27, 4, 255};
+            part.update_func = update_wood;
+            break;
+        case MAT_FIRE:
+            part.elem_type = ELEM_GAS;
+            part.life_time = 1.5f;
+            part.color = RED;
+            part.update_func = update_fire;
             break;
         default:
             break;
@@ -704,7 +756,7 @@ particle_line(grid_t *grid, int x1, int y1, int x2, int y2, material_type m)
 
     /** 
      * The if-else checks containing the while loops used to be within the
-     * loops. The were moved out here as a little bit of optimization because
+     * loops. They were moved out here as a little bit of optimization because
      * the check only needs to be done once to decide if a particle is getting
      * added or removed. Having it within the loop made it check ever iteration,
      * which was largely unnecessary. This does make the code uglier, but who
@@ -836,7 +888,6 @@ is_pos_gas(grid_t *grid, int x, int y)
 void update_empty(grid_t *grid, int x, int y)
 {
     get_particle(grid, x, y)->has_been_updated = true;
-    return;
 }
 
 void
@@ -975,6 +1026,53 @@ update_oil(grid_t *grid, int x, int y)
     cur_particle->has_been_updated = true;
 }
 
+void
+update_wall(grid_t *grid, int x, int y)
+{
+    get_particle(grid, x, y)->has_been_updated = true;
+}
+
+void
+update_wood(grid_t *grid, int x, int y)
+{
+    get_particle(grid, x, y)->has_been_updated = true;
+}
+
+void
+update_fire(grid_t *grid, int x, int y)
+{
+    int above = y + 1;
+    int left = x - 1;
+    int right = x + 1;
+    particle_t *cur_particle = get_particle(grid, x, y);
+
+    cur_particle->life_time -= (float)rand() / (float)(RAND_MAX / 0.25f);
+
+    if (cur_particle->life_time <= 0.0f) {
+        remove_particle(grid, x, y);
+        cur_particle->has_been_updated = true;
+        return;
+    }
+
+    if (is_pos_empty(grid, x, above)) {
+        swap_particles(grid, x, y, x, above);
+    }
+    else if (is_pos_empty(grid, left, above)) {
+        swap_particles(grid, x, y, left, above);
+    }
+    else if (is_pos_empty(grid, right, above)) {
+        swap_particles(grid, x, y, right, above);
+    }
+    else if (is_pos_empty(grid, left, y)) {
+        swap_particles(grid, x, y, left, y);
+    }
+    else if (is_pos_empty(grid, right, y)) {
+        swap_particles(grid, x, y, right, y);
+    }
+
+    cur_particle->has_been_updated = true;
+}
+
 material_type 
 next_material(material_type m)
 {
@@ -1003,6 +1101,12 @@ get_color_from_mat(material_type m)
             return GRAY;
         case MAT_OIL:
             return BLACK;
+        case MAT_WALL:
+            return LIGHTGRAY;
+        case MAT_WOOD:
+            return (Color){66, 27, 4, 255};
+        case MAT_FIRE:
+            return RED;
         default:
             return BLANK;
     }

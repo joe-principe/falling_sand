@@ -10,3 +10,6 @@ to switch particles, C to clear the screen
 * Water
 * Oil
 * Smoke
+* Wall
+* Wood
+* Fire (doesn't burn anything currently)
