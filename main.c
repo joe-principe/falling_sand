@@ -668,7 +668,8 @@ add_particle(grid_t *grid, int x, int y, material_type m)
         case MAT_WATER:
             part.elem_type = ELEM_LIQUID;
             part.life_time = 0.0f;
-            part.color = (Color){102, 191, 255, 128};
+            part.color = SKYBLUE;
+            part.color.a = 128;
             part.update_func = update_water;
             break;
         case MAT_SMOKE:
@@ -908,14 +909,16 @@ update_sand(grid_t *grid, int x, int y)
         || is_pos_gas(grid, x, below)) {
         swap_particles(grid, x, y, x, below);
     }
-    else if (is_pos_empty(grid, left, below)
+    else if ((is_pos_empty(grid, left, below)
              || is_pos_liquid(grid, left, below)
-             || is_pos_gas(grid, left, below)) {
+             || is_pos_gas(grid, left, below))
+             && !is_pos_static(grid, x, below)) {
         swap_particles(grid, x, y, left, below);
     }
-    else if (is_pos_empty(grid, right, below)
+    else if ((is_pos_empty(grid, right, below)
              || is_pos_liquid(grid, right, below)
-             || is_pos_gas(grid, right, below)) {
+             || is_pos_gas(grid, right, below))
+             && !is_pos_static(grid, x, below)) {
         swap_particles(grid, x, y, right, below);
     }
 
@@ -935,14 +938,16 @@ update_water(grid_t *grid, int x, int y)
         || get_particle_type_pos(grid, x, below) == MAT_OIL) {
         swap_particles(grid, x, y, x, below);
     }
-    else if (is_pos_empty(grid, left, below)
+    else if ((is_pos_empty(grid, left, below)
              || is_pos_gas(grid, left, below)
-             || get_particle_type_pos(grid, left, below) == MAT_OIL) {
+             || get_particle_type_pos(grid, left, below) == MAT_OIL)
+             && !is_pos_static(grid, x, below)) {
         swap_particles(grid, x, y, left, below);
     }
-    else if (is_pos_empty(grid, right, below)
+    else if ((is_pos_empty(grid, right, below)
              || is_pos_gas(grid, right, below)
-             || get_particle_type_pos(grid, right, below) == MAT_OIL) {
+             || get_particle_type_pos(grid, right, below) == MAT_OIL)
+             && !is_pos_static(grid, x, below)) {
         swap_particles(grid, x, y, right, below);
     }
     else if (is_pos_empty(grid, left, y)
@@ -983,10 +988,12 @@ update_smoke(grid_t *grid, int x, int y)
     if (is_pos_empty(grid, x, above)) {
         swap_particles(grid, x, y, x, above);
     }
-    else if (is_pos_empty(grid, left, above)) {
+    else if (is_pos_empty(grid, left, above)
+             && !is_pos_static(grid, x, above)) {
         swap_particles(grid, x, y, left, above);
     }
-    else if (is_pos_empty(grid, right, above)) {
+    else if (is_pos_empty(grid, right, above)
+             && !is_pos_static(grid, x, above)) {
         swap_particles(grid, x, y, right, above);
     }
     else if (is_pos_empty(grid, left, y)) {
@@ -1010,10 +1017,12 @@ update_oil(grid_t *grid, int x, int y)
     if (is_pos_empty(grid, x, below)) {
         swap_particles(grid, x, y, x, below);
     }
-    else if (is_pos_empty(grid, left, below)) {
+    else if (is_pos_empty(grid, left, below)
+             && !is_pos_static(grid, x, below)) {
         swap_particles(grid, x, y, left, below);
     }
-    else if (is_pos_empty(grid, right, below)) {
+    else if (is_pos_empty(grid, right, below)
+             && !is_pos_static(grid, x, below)) {
         swap_particles(grid, x, y, right, below);
     }
     else if (is_pos_empty(grid, left, y)) {
@@ -1057,10 +1066,12 @@ update_fire(grid_t *grid, int x, int y)
     if (is_pos_empty(grid, x, above)) {
         swap_particles(grid, x, y, x, above);
     }
-    else if (is_pos_empty(grid, left, above)) {
+    else if (is_pos_empty(grid, left, above)
+             && !is_pos_static(grid, x, above)) {
         swap_particles(grid, x, y, left, above);
     }
-    else if (is_pos_empty(grid, right, above)) {
+    else if (is_pos_empty(grid, right, above)
+             && !is_pos_static(grid, x, above)) {
         swap_particles(grid, x, y, right, above);
     }
     else if (is_pos_empty(grid, left, y)) {
