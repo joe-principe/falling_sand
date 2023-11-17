@@ -158,7 +158,7 @@ void clear_grid(grid_t *grid);
  * @param y The y-coordinate in the particle array
  * @return A pointer to the particle at the input coordinates
  */
-particle_t *get_particle(grid_t *grid, int x, int y);
+particle_t *get_particle(const grid_t *grid, int x, int y);
 
 /**
  * Copies the information about an input particle to the particle at the input
@@ -177,7 +177,7 @@ void set_particle(grid_t *grid, int x, int y, particle_t *p);
  * @param p The particle
  * @return The material type of the particle
  */
-material_type get_particle_type(particle_t *p);
+material_type get_particle_type(const particle_t *p);
 
 /**
  * Gets the material type of a particle at the input coordinates
@@ -187,7 +187,7 @@ material_type get_particle_type(particle_t *p);
  * @param y The y-coordinate in the particle array
  * @return The material type of the particle
  */
-material_type get_particle_type_pos(grid_t *grid, int x, int y);
+material_type get_particle_type_pos(const grid_t *grid, int x, int y);
 
 /**
  * Adds a new particle of type m into the array at the input coordinates
@@ -246,7 +246,7 @@ void particle_line(grid_t *grid, int x1, int y1, int x2, int y2,
  * @param particle The particle to check
  * @return A boolean indicating if the particle is empty
  */
-bool is_particle_empty(particle_t *particle);
+bool is_particle_empty(const particle_t *particle);
 
 /**
  * Checks if the particle's element type is "STATIC"
@@ -254,7 +254,7 @@ bool is_particle_empty(particle_t *particle);
  * @param particle The particle to check
  * @return A boolean indicating if the particle is static
  */
-bool is_particle_static(particle_t *particle);
+bool is_particle_static(const particle_t *particle);
 
 /**
  * Checks if the particle's element type is "SOLID"
@@ -262,7 +262,7 @@ bool is_particle_static(particle_t *particle);
  * @param particle The particle to check
  * @return A boolean indicating if the particle is solid
  */
-bool is_particle_solid(particle_t *particle);
+bool is_particle_solid(const particle_t *particle);
 
 /**
  * Checks if the particle's element type is "LIQUID"
@@ -270,7 +270,7 @@ bool is_particle_solid(particle_t *particle);
  * @param particle The particle to check
  * @return A boolean indicating if the particle is liquid
  */
-bool is_particle_liquid(particle_t *particle);
+bool is_particle_liquid(const particle_t *particle);
 
 /**
  * Checks if the particle's element type is "GAS"
@@ -278,7 +278,7 @@ bool is_particle_liquid(particle_t *particle);
  * @param particle The particle to check
  * @return A boolean indicating if the particle is gas
  */
-bool is_particle_gas(particle_t *particle);
+bool is_particle_gas(const particle_t *particle);
 
 /**
  * Checks if the particle type in the array at the input coordinates is "EMPTY"
@@ -291,7 +291,7 @@ bool is_particle_gas(particle_t *particle);
  * @param y The y-coordinate in the particle array
  * @return A boolean indicating if the particle is empty
  */
-bool is_pos_empty(grid_t *grid, int x, int y);
+bool is_pos_empty(const grid_t *grid, int x, int y);
 
 /**
  * Checks if the particle type in the array at the input coordinates is "STATIC"
@@ -301,7 +301,7 @@ bool is_pos_empty(grid_t *grid, int x, int y);
  * @param y The y-coordinate in the particle array
  * @return A boolean indicating if the particle is static
  */
-bool is_pos_static(grid_t *grid, int x, int y);
+bool is_pos_static(const grid_t *grid, int x, int y);
 
 /**
  * Checks if the particle type in the array at the input coordinates is "SOLID"
@@ -311,7 +311,7 @@ bool is_pos_static(grid_t *grid, int x, int y);
  * @param y The y-coordinate in the particle array
  * @return A boolean indicating if the particle is solid
  */
-bool is_pos_solid(grid_t *grid, int x, int y);
+bool is_pos_solid(const grid_t *grid, int x, int y);
 
 /**
  * Checks if the particle type in the array at the input coordinates is "LIQUID"
@@ -321,7 +321,7 @@ bool is_pos_solid(grid_t *grid, int x, int y);
  * @param y The y-coordinate in the particle array
  * @return A boolean indicating if the particle is liquid
  */
-bool is_pos_liquid(grid_t *grid, int x, int y);
+bool is_pos_liquid(const grid_t *grid, int x, int y);
 
 /**
  * Checks if the particle type in the array at the input coordinates is "GAS"
@@ -331,10 +331,10 @@ bool is_pos_liquid(grid_t *grid, int x, int y);
  * @param y The y-coordinate in the particle array
  * @return A boolean indicating if the particle is gas
  */
-bool is_pos_gas(grid_t *grid, int x, int y);
+bool is_pos_gas(const grid_t *grid, int x, int y);
 
 /**
- * The update function for empty particles.
+ * The update function for empty particles
  *
  * @param grid The grid of particles
  * @param x The x-coordinate in the particle array
@@ -343,7 +343,7 @@ bool is_pos_gas(grid_t *grid, int x, int y);
 void update_empty(grid_t *grid, int x, int y);
 
 /**
- * The update function for sand particles. Moves the sand down if possible
+ * The update function for sand particles
  *
  * @param grid The grid of particles
  * @param x The x-coordinate in the particle array of the sand
@@ -432,14 +432,14 @@ Color get_color_from_mat(material_type m);
 int 
 main(void)
 {
-    const int grid_w = 512, grid_h = 512;
-    const int scr_w = 512, scr_h = 576;
-    int x = 0, y = 0;
+    const int grid_w = 256, grid_h = 256;
+    const int scr_w = 256, scr_h = 320;
+    int x = 0, y = 0, i = 0;
     int prev_pos[2] = {0, 0};
     int curr_pos[2] = {0, 0};
-    material_type cur_mat = MAT_SAND;
+    material_type curr_mat = MAT_SAND;
     grid_t *grid = new_grid(grid_w, grid_h);
-    particle_t *cur_particle = NULL;
+    particle_t *curr_particle = NULL;
 
     srand(time(NULL));
 
@@ -458,19 +458,19 @@ main(void)
         /*}*/
 
         if (IsKeyPressed(KEY_RIGHT)) {
-            cur_mat = next_material(cur_mat);
+            curr_mat = next_material(curr_mat);
         }
         else if (IsKeyPressed(KEY_LEFT)) {
-            cur_mat = prev_material(cur_mat);
+            curr_mat = prev_material(curr_mat);
         }
 
         if (IsMouseButtonDown(MOUSE_BUTTON_LEFT)) {
-            particle_line(grid, prev_pos[0], prev_pos[1], curr_pos[0],
-                          curr_pos[1], cur_mat);
+            particle_line(grid, prev_pos[0], prev_pos[1],
+                                curr_pos[0], curr_pos[1], curr_mat);
         }
         else if (IsMouseButtonDown(MOUSE_BUTTON_RIGHT)) {
-            particle_line(grid, prev_pos[0], prev_pos[1], curr_pos[0],
-                          curr_pos[1], MAT_EMPTY);
+            particle_line(grid, prev_pos[0], prev_pos[1],
+                                curr_pos[0], curr_pos[1], MAT_EMPTY);
         }
 
         if (IsKeyPressed(KEY_C)) { clear_grid(grid); }
@@ -489,32 +489,30 @@ main(void)
              */
             for (y = 0; y < grid_h; y++) {
                 for (x = 0; x < grid_w; x++) {
-                    cur_particle = get_particle(grid, x, y);
-                    if (cur_particle->has_been_updated) { continue; }
-                    cur_particle->update_func(grid, x, y);
+                    curr_particle = get_particle(grid, x, y);
+                    if (curr_particle->has_been_updated) { continue; }
+                    curr_particle->update_func(grid, x, y);
                 }
             }
 
             for (y = 0; y < grid_h; y++) {
                 for (x = 0; x < grid_w; x++) {
-                    cur_particle = get_particle(grid, x, y);
-                    cur_particle->has_been_updated = false;
-                    DrawPixel(x, grid_w - 1 - y, cur_particle->color);
+                    curr_particle = get_particle(grid, x, y);
+                    curr_particle->has_been_updated = false;
+                    DrawPixel(x, grid_w - 1 - y, curr_particle->color);
                 }
             }
 
             /* UI drawing code */
             DrawRectangle(0, grid_h, scr_w, scr_h - grid_h, DARKBLUE);
-            DrawFPS(0, grid_h);
+            DrawFPS(4, grid_h);
             DrawRectangle(  4, grid_h + 20, 40, 40,
-                          get_color_from_mat(cur_mat));
-            DrawRectangle( 50, grid_h + 20, 20, 20, YELLOW);
-            DrawRectangle( 80, grid_h + 20, 20, 20, SKYBLUE);
-            DrawRectangle(110, grid_h + 20, 20, 20, GRAY);
-            DrawRectangle(140, grid_h + 20, 20, 20, BLACK);
-            DrawRectangle(170, grid_h + 20, 20, 20, LIGHTGRAY);
-            DrawRectangle(200, grid_h + 20, 20, 20, (Color){66, 27, 4, 255});
-            DrawRectangle(230, grid_h + 20, 20, 20, RED);
+                          get_color_from_mat(curr_mat));
+
+            for (i = 1; i < MAT_COUNT; i++) {
+                DrawRectangle(20 + 30 * i, grid_h + 20, 20, 20,
+                              get_color_from_mat(i));
+            }
         }
         EndDrawing();
 
@@ -608,7 +606,7 @@ clear_grid(grid_t *grid)
 }
 
 particle_t *
-get_particle(grid_t *grid, int x, int y)
+get_particle(const grid_t *grid, int x, int y)
 {
     return &grid->arr[y * grid->width + x];
 }
@@ -630,13 +628,13 @@ set_particle(grid_t *grid, int x, int y, particle_t *p)
 }
 
 material_type
-get_particle_type(particle_t *p)
+get_particle_type(const particle_t *p)
 {
     return p->mat_type;
 }
 
 material_type
-get_particle_type_pos(grid_t *grid, int x, int y)
+get_particle_type_pos(const grid_t *grid, int x, int y)
 {
     /* TODO: Fix this */
     if (x < 0 || x >= grid->width || y < 0 || y >= grid->height) {
@@ -657,7 +655,6 @@ add_particle(grid_t *grid, int x, int y, material_type m)
     part.velocity = (Vector2){0.0f, 0.0f};
     part.has_been_updated = false;
 
-    /* TODO: Update this with correct lifetimes */
     switch (m) {
         case MAT_SAND:
             part.elem_type = ELEM_SOLID;
@@ -680,7 +677,7 @@ add_particle(grid_t *grid, int x, int y, material_type m)
             break;
         case MAT_OIL:
             part.elem_type = ELEM_LIQUID;
-            part.life_time = 0.0f;
+            part.life_time = 3.0f;
             part.color = BLACK;
             part.update_func = update_oil;
             break;
@@ -705,6 +702,7 @@ add_particle(grid_t *grid, int x, int y, material_type m)
         default:
             break;
     }
+
     set_particle(grid, x, y, &part);
 }
 
@@ -803,41 +801,40 @@ particle_line(grid_t *grid, int x1, int y1, int x2, int y2, material_type m)
             }
         }
     }
-
 }
 
 bool
-is_particle_empty(particle_t *particle)
+is_particle_empty(const particle_t *particle)
 {
     return particle->mat_type == MAT_EMPTY;
 }
 
 bool 
-is_particle_static(particle_t *particle)
+is_particle_static(const particle_t *particle)
 {
     return particle->elem_type == ELEM_STATIC;
 }
 
 bool 
-is_particle_solid(particle_t *particle)
+is_particle_solid(const particle_t *particle)
 {
     return particle->elem_type == ELEM_SOLID;
 }
 
 bool 
-is_particle_liquid(particle_t *particle)
+is_particle_liquid(const particle_t *particle)
 {
     return particle->elem_type == ELEM_LIQUID;
 }
 
 bool 
-is_particle_gas(particle_t *particle)
+is_particle_gas(const particle_t *particle)
 {
     return particle->elem_type == ELEM_GAS;
 }
 
 bool
-is_pos_empty(grid_t *grid, int x, int y)
+is_pos_empty(const grid_t *grid, int x, int y)
 {
     if (x < 0 || x >= grid->width || y < 0 || y >= grid->height) {
         return false;
@@ -847,7 +844,7 @@ is_pos_empty(grid_t *grid, int x, int y)
 }
 
 bool 
-is_pos_static(grid_t *grid, int x, int y)
+is_pos_static(const grid_t *grid, int x, int y)
 {
     if (x < 0 || x >= grid->width || y < 0 || y >= grid->height) {
         return false;
@@ -857,7 +854,7 @@ is_pos_static(grid_t *grid, int x, int y)
 }
 
 bool 
-is_pos_solid(grid_t *grid, int x, int y)
+is_pos_solid(const grid_t *grid, int x, int y)
 {
     if (x < 0 || x >= grid->width || y < 0 || y >= grid->height) {
         return false;
@@ -867,7 +864,7 @@ is_pos_solid(grid_t *grid, int x, int y)
 }
 
 bool 
-is_pos_liquid(grid_t *grid, int x, int y)
+is_pos_liquid(const grid_t *grid, int x, int y)
 {
     if (x < 0 || x >= grid->width || y < 0 || y >= grid->height) {
         return false;
@@ -877,7 +874,7 @@ is_pos_liquid(grid_t *grid, int x, int y)
 }
 
 bool 
-is_pos_gas(grid_t *grid, int x, int y)
+is_pos_gas(const grid_t *grid, int x, int y)
 {
     if (x < 0 || x >= grid->width || y < 0 || y >= grid->height) {
         return false;
@@ -897,10 +894,10 @@ update_sand(grid_t *grid, int x, int y)
     int below = y - 1;
     int left  = x - 1;
     int right = x + 1;
-    particle_t *cur_particle = get_particle(grid, x, y);
+    particle_t *curr_particle = get_particle(grid, x, y);
 
     if (y == 0) {
-        cur_particle->has_been_updated = true;
+        curr_particle->has_been_updated = true;
         return;
     }
     
@@ -922,7 +919,7 @@ update_sand(grid_t *grid, int x, int y)
         swap_particles(grid, x, y, right, below);
     }
 
-    cur_particle->has_been_updated = true;
+    curr_particle->has_been_updated = true;
 }
 
 void 
@@ -931,7 +928,7 @@ update_water(grid_t *grid, int x, int y)
     int below = y - 1;
     int left  = x - 1;
     int right = x + 1;
-    particle_t *cur_particle = get_particle(grid, x, y);
+    particle_t *curr_particle = get_particle(grid, x, y);
 
     if (is_pos_empty(grid, x, below)
         || is_pos_gas(grid, x, below)
@@ -961,7 +958,7 @@ update_water(grid_t *grid, int x, int y)
         swap_particles(grid, x, y, right, y);
     }
 
-    cur_particle->has_been_updated = true;
+    curr_particle->has_been_updated = true;
 }
 
 void
@@ -970,18 +967,18 @@ update_smoke(grid_t *grid, int x, int y)
     int above = y + 1;
     int left = x - 1;
     int right = x + 1;
-    particle_t *cur_particle = get_particle(grid, x, y);
+    particle_t *curr_particle = get_particle(grid, x, y);
 
     if (y == grid->height) {
-        cur_particle->has_been_updated = true;
+        curr_particle->has_been_updated = true;
         return;
     }
 
-    cur_particle->life_time -= (float)rand() / (float)(RAND_MAX / 0.1f);
+    curr_particle->life_time -= (float)rand() / (float)(RAND_MAX / 0.1f);
 
-    if (cur_particle->life_time <= 0.0f) {
+    if (curr_particle->life_time <= 0.0f) {
         remove_particle(grid, x, y);
-        cur_particle->has_been_updated = true;
+        curr_particle->has_been_updated = true;
         return;
     }
 
@@ -1003,7 +1000,7 @@ update_smoke(grid_t *grid, int x, int y)
         swap_particles(grid, x, y, right, y);
     }
 
-    cur_particle->has_been_updated = true;
+    curr_particle->has_been_updated = true;
 }
 
 void
@@ -1012,7 +1009,7 @@ update_oil(grid_t *grid, int x, int y)
     int below = y - 1;
     int left = x - 1;
     int right = x + 1;
-    particle_t *cur_particle = get_particle(grid, x, y);
+    particle_t *curr_particle = get_particle(grid, x, y);
 
     if (is_pos_empty(grid, x, below)) {
         swap_particles(grid, x, y, x, below);
@@ -1032,7 +1029,7 @@ update_oil(grid_t *grid, int x, int y)
         swap_particles(grid, x, y, right, y);
     }
 
-    cur_particle->has_been_updated = true;
+    curr_particle->has_been_updated = true;
 }
 
 void
@@ -1053,13 +1050,13 @@ update_fire(grid_t *grid, int x, int y)
     int above = y + 1;
     int left = x - 1;
     int right = x + 1;
-    particle_t *cur_particle = get_particle(grid, x, y);
+    particle_t *curr_particle = get_particle(grid, x, y);
 
-    cur_particle->life_time -= (float)rand() / (float)(RAND_MAX / 0.25f);
+    curr_particle->life_time -= (float)rand() / (float)(RAND_MAX / 0.25f);
 
-    if (cur_particle->life_time <= 0.0f) {
+    if (curr_particle->life_time <= 0.0f) {
         remove_particle(grid, x, y);
-        cur_particle->has_been_updated = true;
+        curr_particle->has_been_updated = true;
         return;
     }
 
@@ -1081,7 +1078,7 @@ update_fire(grid_t *grid, int x, int y)
         swap_particles(grid, x, y, right, y);
     }
 
-    cur_particle->has_been_updated = true;
+    curr_particle->has_been_updated = true;
 }
 
 material_type 
