@@ -519,7 +519,7 @@ main(void)
             DrawRectangle(4, grid_h + 20, 40, 40, get_color_from_mat(curr_mat));
 
             for (i = 1; i < MAT_COUNT; i++) {
-                DrawRectangle(20 + 30 * i, grid_h + 20, 20, 20,
+                DrawRectangle(30 + 20 * i, grid_h + 20, 15, 15,
                               get_color_from_mat(i));
             }
         }
@@ -712,7 +712,7 @@ add_particle(grid_t *grid, int x, int y, material_type m)
             part.elem_type = ELEM_GAS;
             part.life_time = 1.5f;
             part.color = ORANGE;
-            part.update_func = update_fire;
+            part.update_func = update_flame;
             break;
         default:
             break;

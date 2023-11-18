@@ -12,4 +12,4 @@ to switch particles, C to clear the screen
 * Smoke
 * Wall
 * Wood
-* Fire (doesn't burn anything currently)
+* Fire (note: oil doesn't retain its velocity and water doesn't extinguish)
