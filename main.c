@@ -61,6 +61,7 @@ typedef enum material_type
     MAT_WALL,
     MAT_WOOD,
     MAT_FIRE,
+    MAT_FLAME,
     MAT_COUNT
 } material_type;
 
@@ -397,13 +398,22 @@ void update_wall(grid_t *grid, int x, int y);
 void update_wood(grid_t *grid, int x, int y);
 
 /**
- * The update function for fire particles
+ * The update function for burning particles
  *
  * @param grid The grid of particles
  * @param x The x-coordinate in the particle array of the fire
  * @param y The y-coordinate in the particle array of the fire
  */
 void update_fire(grid_t *grid, int x, int y);
+
+/**
+ * The update function for flame particles
+ *
+ * @param grid The grid of particles
+ * @param x The x-coordinate in the particle array of the flame
+ * @param y The y-coordinate in the particle array of the flame
+ */
+void update_flame(grid_t *grid, int x, int y);
 
 /**
  * Sets the current drawing material to the next type
@@ -506,8 +516,7 @@ main(void)
             /* UI drawing code */
             DrawRectangle(0, grid_h, scr_w, scr_h - grid_h, DARKBLUE);
             DrawFPS(4, grid_h);
-            DrawRectangle(  4, grid_h + 20, 40, 40,
-                          get_color_from_mat(curr_mat));
+            DrawRectangle(4, grid_h + 20, 40, 40, get_color_from_mat(curr_mat));
 
             for (i = 1; i < MAT_COUNT; i++) {
                 DrawRectangle(20 + 30 * i, grid_h + 20, 20, 20,
@@ -694,9 +703,15 @@ add_particle(grid_t *grid, int x, int y, material_type m)
             part.update_func = update_wood;
             break;
         case MAT_FIRE:
+            part.elem_type = ELEM_SOLID;
+            part.life_time = 8.0f;
+            part.color = RED;
+            part.update_func = update_fire;
+            break;
+        case MAT_FLAME:
             part.elem_type = ELEM_GAS;
             part.life_time = 1.5f;
-            part.color = RED;
+            part.color = ORANGE;
             part.update_func = update_fire;
             break;
         default:
@@ -892,8 +907,7 @@ void
 update_sand(grid_t *grid, int x, int y)
 {
     int below = y - 1;
-    int left  = x - 1;
-    int right = x + 1;
+    int left  = x - 1, right = x + 1;
     particle_t *curr_particle = get_particle(grid, x, y);
 
     if (y == 0) {
@@ -926,8 +940,7 @@ void
 update_water(grid_t *grid, int x, int y)
 {
     int below = y - 1;
-    int left  = x - 1;
-    int right = x + 1;
+    int left  = x - 1, right = x + 1;
     particle_t *curr_particle = get_particle(grid, x, y);
 
     if (is_pos_empty(grid, x, below)
@@ -965,8 +978,7 @@ void
 update_smoke(grid_t *grid, int x, int y)
 {
     int above = y + 1;
-    int left = x - 1;
-    int right = x + 1;
+    int left = x - 1, right = x + 1;
     particle_t *curr_particle = get_particle(grid, x, y);
 
     if (y == grid->height) {
@@ -1006,19 +1018,137 @@ update_smoke(grid_t *grid, int x, int y)
 void
 update_oil(grid_t *grid, int x, int y)
 {
-    int below = y - 1;
-    int left = x - 1;
-    int right = x + 1;
+    int r = 0;
+    int above = y + 1, below = y - 1;
+    int left = x - 1, right = x + 1;
     particle_t *curr_particle = get_particle(grid, x, y);
+    particle_t *temp_particle = NULL;
+    Vector2 temp_vel = curr_particle->velocity;
 
+    /**
+     * There are 8 checks of the particles around the oil to see if they are
+     * flames/fire. There might be some clean way to do this, but I don't know
+     * it, so for now, ugliness.
+     *
+     * Anyway, this code basically just gives the oil a chance to ignite if it's
+     * near a flame or something burning. If the oil ignites, it adds a "fire"
+     * particle and gives it the oil's propereties (liquid element and velocity)
+     */
+    temp_particle = get_particle(grid, left, below);
+    if (get_particle_type(temp_particle) == MAT_FLAME
+        || get_particle_type(temp_particle) == MAT_FIRE) {
+        /* 75% chance to ignite */
+        r = rand() % 4;
+        if (r != 0) {
+            remove_particle(grid, x, y);
+            add_particle(grid, x,  y, MAT_FIRE);
+            curr_particle->elem_type = ELEM_LIQUID;
+            curr_particle->velocity = temp_vel;
+        }
+    }
+
+    temp_particle = get_particle(grid, x, below);
+    if (get_particle_type(temp_particle) == MAT_FLAME
+        || get_particle_type(temp_particle) == MAT_FIRE) {
+        /* 75% chance to ignite */
+        r = rand() % 4;
+        if (r != 0) {
+            remove_particle(grid, x, y);
+            add_particle(grid, x,  y, MAT_FIRE);
+            curr_particle->elem_type = ELEM_LIQUID;
+            curr_particle->velocity = temp_vel;
+        }
+    }
+
+    temp_particle = get_particle(grid, right, below);
+    if (get_particle_type(temp_particle) == MAT_FLAME
+        || get_particle_type(temp_particle) == MAT_FIRE) {
+        /* 75% chance to ignite */
+        r = rand() % 4;
+        if (r != 0) {
+            remove_particle(grid, x, y);
+            add_particle(grid, x,  y, MAT_FIRE);
+            curr_particle->elem_type = ELEM_LIQUID;
+            curr_particle->velocity = temp_vel;
+        }
+    }
+
+    temp_particle = get_particle(grid, left, y);
+    if (get_particle_type(temp_particle) == MAT_FLAME
+        || get_particle_type(temp_particle) == MAT_FIRE) {
+        /* 75% chance to ignite */
+        r = rand() % 4;
+        if (r != 0) {
+            remove_particle(grid, x, y);
+            add_particle(grid, x,  y, MAT_FIRE);
+            curr_particle->elem_type = ELEM_LIQUID;
+            curr_particle->velocity = temp_vel;
+        }
+    }
+
+    temp_particle = get_particle(grid, right, y);
+    if (get_particle_type(temp_particle) == MAT_FLAME
+        || get_particle_type(temp_particle) == MAT_FIRE) {
+        /* 75% chance to ignite */
+        r = rand() % 4;
+        if (r != 0) {
+            remove_particle(grid, x, y);
+            add_particle(grid, x,  y, MAT_FIRE);
+            curr_particle->elem_type = ELEM_LIQUID;
+            curr_particle->velocity = temp_vel;
+        }
+    }
+
+    temp_particle = get_particle(grid, left, above);
+    if (get_particle_type(temp_particle) == MAT_FLAME
+        || get_particle_type(temp_particle) == MAT_FIRE) {
+        /* 75% chance to ignite */
+        r = rand() % 4;
+        if (r != 0) {
+            remove_particle(grid, x, y);
+            add_particle(grid, x,  y, MAT_FIRE);
+            curr_particle->elem_type = ELEM_LIQUID;
+            curr_particle->velocity = temp_vel;
+        }
+    }
+
+    temp_particle = get_particle(grid, x, above);
+    if (get_particle_type(temp_particle) == MAT_FLAME
+        || get_particle_type(temp_particle) == MAT_FIRE) {
+        /* 75% chance to ignite */
+        r = rand() % 4;
+        if (r != 0) {
+            remove_particle(grid, x, y);
+            add_particle(grid, x,  y, MAT_FIRE);
+            curr_particle->elem_type = ELEM_LIQUID;
+            curr_particle->velocity = temp_vel;
+        }
+    }
+
+    temp_particle = get_particle(grid, right, above);
+    if (get_particle_type(temp_particle) == MAT_FLAME
+        || get_particle_type(temp_particle) == MAT_FIRE) {
+        /* 75% chance to ignite */
+        r = rand() % 4;
+        if (r != 0) {
+            remove_particle(grid, x, y);
+            add_particle(grid, x,  y, MAT_FIRE);
+            curr_particle->elem_type = ELEM_LIQUID;
+            curr_particle->velocity = temp_vel;
+        }
+    }
+
+    /* Moves the oil like a regular liquid */
     if (is_pos_empty(grid, x, below)) {
         swap_particles(grid, x, y, x, below);
     }
-    else if (is_pos_empty(grid, left, below)
+    else if ((is_pos_empty(grid, left, below)
+             || is_pos_gas(grid, left, below))
              && !is_pos_static(grid, x, below)) {
         swap_particles(grid, x, y, left, below);
     }
-    else if (is_pos_empty(grid, right, below)
+    else if ((is_pos_empty(grid, right, below)
+             || is_pos_gas(grid, right, below))
              && !is_pos_static(grid, x, below)) {
         swap_particles(grid, x, y, right, below);
     }
@@ -1041,15 +1171,158 @@ update_wall(grid_t *grid, int x, int y)
 void
 update_wood(grid_t *grid, int x, int y)
 {
-    get_particle(grid, x, y)->has_been_updated = true;
+    int r;
+    int above = y + 1, below = y - 1;
+    int  left = x - 1, right = x + 1;
+    particle_t *curr_particle = get_particle(grid, x, y);
+    particle_t *temp_particle = NULL;
+    Vector2 temp_vel = curr_particle->velocity;
+
+    temp_particle = get_particle(grid, left, below);
+    if (get_particle_type(temp_particle) == MAT_FLAME
+        || get_particle_type(temp_particle) == MAT_FIRE) {
+        /* 50% chance to ignite */
+        r = rand() % 2;
+        if (r == 0) {
+            remove_particle(grid, x, y);
+            add_particle(grid, x,  y, MAT_FIRE);
+            curr_particle->elem_type = ELEM_STATIC;
+            curr_particle->velocity = temp_vel;
+        }
+    }
+
+    temp_particle = get_particle(grid, x, below);
+    if (get_particle_type(temp_particle) == MAT_FLAME
+        || get_particle_type(temp_particle) == MAT_FIRE) {
+        /* 50% chance to ignite */
+        r = rand() % 2;
+        if (r == 0) {
+            remove_particle(grid, x, y);
+            add_particle(grid, x,  y, MAT_FIRE);
+            curr_particle->elem_type = ELEM_STATIC;
+            curr_particle->velocity = temp_vel;
+        }
+    }
+
+    temp_particle = get_particle(grid, right, below);
+    if (get_particle_type(temp_particle) == MAT_FLAME
+        || get_particle_type(temp_particle) == MAT_FIRE) {
+        /* 50% chance to ignite */
+        r = rand() % 2;
+        if (r == 0) {
+            remove_particle(grid, x, y);
+            add_particle(grid, x,  y, MAT_FIRE);
+            curr_particle->elem_type = ELEM_STATIC;
+            curr_particle->velocity = temp_vel;
+        }
+    }
+
+    temp_particle = get_particle(grid, left, y);
+    if (get_particle_type(temp_particle) == MAT_FLAME
+        || get_particle_type(temp_particle) == MAT_FIRE) {
+        /* 50% chance to ignite */
+        r = rand() % 2;
+        if (r == 0) {
+            remove_particle(grid, x, y);
+            add_particle(grid, x,  y, MAT_FIRE);
+            curr_particle->elem_type = ELEM_STATIC;
+            curr_particle->velocity = temp_vel;
+        }
+    }
+
+    temp_particle = get_particle(grid, right, y);
+    if (get_particle_type(temp_particle) == MAT_FLAME
+        || get_particle_type(temp_particle) == MAT_FIRE) {
+        /* 50% chance to ignite */
+        r = rand() % 2;
+        if (r == 0) {
+            remove_particle(grid, x, y);
+            add_particle(grid, x,  y, MAT_FIRE);
+            curr_particle->elem_type = ELEM_STATIC;
+            curr_particle->velocity = temp_vel;
+        }
+    }
+
+    temp_particle = get_particle(grid, left, above);
+    if (get_particle_type(temp_particle) == MAT_FLAME
+        || get_particle_type(temp_particle) == MAT_FIRE) {
+        /* 50% chance to ignite */
+        r = rand() % 2;
+        if (r == 0) {
+            remove_particle(grid, x, y);
+            add_particle(grid, x,  y, MAT_FIRE);
+            curr_particle->elem_type = ELEM_STATIC;
+            curr_particle->velocity = temp_vel;
+        }
+    }
+
+    temp_particle = get_particle(grid, x, above);
+    if (get_particle_type(temp_particle) == MAT_FLAME
+        || get_particle_type(temp_particle) == MAT_FIRE) {
+        /* 50% chance to ignite */
+        r = rand() % 2;
+        if (r == 0) {
+            remove_particle(grid, x, y);
+            add_particle(grid, x,  y, MAT_FIRE);
+            curr_particle->elem_type = ELEM_STATIC;
+            curr_particle->velocity = temp_vel;
+        }
+    }
+
+    temp_particle = get_particle(grid, right, above);
+    if (get_particle_type(temp_particle) == MAT_FLAME
+        || get_particle_type(temp_particle) == MAT_FIRE) {
+        /* 50% chance to ignite */
+        r = rand() % 2;
+        if (r == 0) {
+            remove_particle(grid, x, y);
+            add_particle(grid, x,  y, MAT_FIRE);
+            curr_particle->elem_type = ELEM_STATIC;
+            curr_particle->velocity = temp_vel;
+        }
+    }
+
+    curr_particle->has_been_updated = true;
 }
 
 void
 update_fire(grid_t *grid, int x, int y)
 {
+    int r = rand() % 4;
+    particle_t *curr_particle = get_particle(grid, x, y);
+
+    switch (r) {
+        case 0:
+            curr_particle->color = (Color){255, 0, 0, 255};
+            break;
+        case 1:
+            curr_particle->color = (Color){192, 0, 0, 255};
+            break;
+        case 2:
+            curr_particle->color = (Color){160, 0, 0, 255};
+            break;
+        case 3:
+            curr_particle->color = (Color){64, 0, 0, 255};
+            break;
+        default:
+            break;
+    }
+
+    curr_particle->life_time -= (float)rand() / (float)(RAND_MAX / 0.15f);
+
+    if (curr_particle->life_time <= 0.0f) {
+        remove_particle(grid, x, y);
+        if (rand() % 5 == 0) { add_particle(grid, x, y, MAT_SMOKE); }
+        curr_particle->has_been_updated = true;
+        return;
+    }
+}
+
+void
+update_flame(grid_t *grid, int x, int y)
+{
     int above = y + 1;
-    int left = x - 1;
-    int right = x + 1;
+    int left = x - 1, right = x + 1;
     particle_t *curr_particle = get_particle(grid, x, y);
 
     curr_particle->life_time -= (float)rand() / (float)(RAND_MAX / 0.25f);
@@ -1101,22 +1374,15 @@ Color
 get_color_from_mat(material_type m)
 {
     switch (m) {
-        case MAT_SAND:
-            return YELLOW;
-        case MAT_WATER:
-            return SKYBLUE;
-        case MAT_SMOKE:
-            return GRAY;
-        case MAT_OIL:
-            return BLACK;
-        case MAT_WALL:
-            return LIGHTGRAY;
-        case MAT_WOOD:
-            return (Color){66, 27, 4, 255};
-        case MAT_FIRE:
-            return RED;
-        default:
-            return BLANK;
+        case MAT_SAND:  return YELLOW;
+        case MAT_WATER: return SKYBLUE;
+        case MAT_SMOKE: return GRAY;
+        case MAT_OIL:   return BLACK;
+        case MAT_WALL:  return LIGHTGRAY;
+        case MAT_WOOD:  return (Color){66, 27, 4, 255};
+        case MAT_FIRE:  return RED;
+        case MAT_FLAME: return ORANGE;
+        default:        return BLANK;
     }
 }
 /* EOF */
