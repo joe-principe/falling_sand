@@ -13,3 +13,9 @@ to switch particles, C to clear the screen
 * Wall
 * Wood
 * Fire (note: oil doesn't retain its velocity and water doesn't extinguish)
+
+# Features to Be Added
+- [ ] Velocity and Gravity
+- [ ] Better fire (can be extinguished, more smoke)
+- [ ] Larger drawing size
+- [ ] Randomized left-right update direction

@@ -500,6 +500,7 @@ main(void)
             for (y = 0; y < grid_h; y++) {
                 for (x = 0; x < grid_w; x++) {
                     curr_particle = get_particle(grid, x, y);
+                    if (curr_particle == NULL) { continue; }
                     if (curr_particle->has_been_updated) { continue; }
                     curr_particle->update_func(grid, x, y);
                 }
@@ -508,6 +509,7 @@ main(void)
             for (y = 0; y < grid_h; y++) {
                 for (x = 0; x < grid_w; x++) {
                     curr_particle = get_particle(grid, x, y);
+                    if (curr_particle == NULL) { continue; }
                     curr_particle->has_been_updated = false;
                     DrawPixel(x, grid_w - 1 - y, curr_particle->color);
                 }
@@ -617,6 +619,9 @@ clear_grid(grid_t *grid)
 particle_t *
 get_particle(const grid_t *grid, int x, int y)
 {
+    if (x < 0 || x >= grid->width || y < 0 || y >= grid->height) {
+        return NULL;
+    }
     return &grid->arr[y * grid->width + x];
 }
 
@@ -900,7 +905,11 @@ is_pos_gas(const grid_t *grid, int x, int y)
 
 void update_empty(grid_t *grid, int x, int y)
 {
-    get_particle(grid, x, y)->has_been_updated = true;
+    particle_t *curr_particle = get_particle(grid, x, y);
+
+    if (curr_particle == NULL) { return; }
+
+    curr_particle->has_been_updated = true;
 }
 
 void
@@ -909,6 +918,8 @@ update_sand(grid_t *grid, int x, int y)
     int below = y - 1;
     int left  = x - 1, right = x + 1;
     particle_t *curr_particle = get_particle(grid, x, y);
+
+    if (curr_particle == NULL) { return; }
 
     if (y == 0) {
         curr_particle->has_been_updated = true;
@@ -942,6 +953,8 @@ update_water(grid_t *grid, int x, int y)
     int below = y - 1;
     int left  = x - 1, right = x + 1;
     particle_t *curr_particle = get_particle(grid, x, y);
+
+    if (curr_particle == NULL) { return; }
 
     if (is_pos_empty(grid, x, below)
         || is_pos_gas(grid, x, below)
@@ -980,6 +993,8 @@ update_smoke(grid_t *grid, int x, int y)
     int above = y + 1;
     int left = x - 1, right = x + 1;
     particle_t *curr_particle = get_particle(grid, x, y);
+
+    if (curr_particle == NULL) { return; }
 
     if (y == grid->height) {
         curr_particle->has_been_updated = true;
@@ -1025,6 +1040,8 @@ update_oil(grid_t *grid, int x, int y)
     particle_t *temp_particle = NULL;
     Vector2 temp_vel = curr_particle->velocity;
 
+    if (curr_particle == NULL) { return; }
+
     /**
      * There are 8 checks of the particles around the oil to see if they are
      * flames/fire. There might be some clean way to do this, but I don't know
@@ -1035,8 +1052,8 @@ update_oil(grid_t *grid, int x, int y)
      * particle and gives it the oil's propereties (liquid element and velocity)
      */
     temp_particle = get_particle(grid, left, below);
-    if (get_particle_type(temp_particle) == MAT_FLAME
-        || get_particle_type(temp_particle) == MAT_FIRE) {
+    if (temp_particle != NULL && (get_particle_type(temp_particle) == MAT_FLAME
+        || get_particle_type(temp_particle) == MAT_FIRE)) {
         /* 75% chance to ignite */
         r = rand() % 4;
         if (r != 0) {
@@ -1048,8 +1065,8 @@ update_oil(grid_t *grid, int x, int y)
     }
 
     temp_particle = get_particle(grid, x, below);
-    if (get_particle_type(temp_particle) == MAT_FLAME
-        || get_particle_type(temp_particle) == MAT_FIRE) {
+    if (temp_particle != NULL && (get_particle_type(temp_particle) == MAT_FLAME
+        || get_particle_type(temp_particle) == MAT_FIRE)) {
         /* 75% chance to ignite */
         r = rand() % 4;
         if (r != 0) {
@@ -1061,8 +1078,8 @@ update_oil(grid_t *grid, int x, int y)
     }
 
     temp_particle = get_particle(grid, right, below);
-    if (get_particle_type(temp_particle) == MAT_FLAME
-        || get_particle_type(temp_particle) == MAT_FIRE) {
+    if (temp_particle != NULL && (get_particle_type(temp_particle) == MAT_FLAME
+        || get_particle_type(temp_particle) == MAT_FIRE)) {
         /* 75% chance to ignite */
         r = rand() % 4;
         if (r != 0) {
@@ -1074,8 +1091,8 @@ update_oil(grid_t *grid, int x, int y)
     }
 
     temp_particle = get_particle(grid, left, y);
-    if (get_particle_type(temp_particle) == MAT_FLAME
-        || get_particle_type(temp_particle) == MAT_FIRE) {
+    if (temp_particle != NULL && (get_particle_type(temp_particle) == MAT_FLAME
+        || get_particle_type(temp_particle) == MAT_FIRE)) {
         /* 75% chance to ignite */
         r = rand() % 4;
         if (r != 0) {
@@ -1087,8 +1104,8 @@ update_oil(grid_t *grid, int x, int y)
     }
 
     temp_particle = get_particle(grid, right, y);
-    if (get_particle_type(temp_particle) == MAT_FLAME
-        || get_particle_type(temp_particle) == MAT_FIRE) {
+    if (temp_particle != NULL && (get_particle_type(temp_particle) == MAT_FLAME
+        || get_particle_type(temp_particle) == MAT_FIRE)) {
         /* 75% chance to ignite */
         r = rand() % 4;
         if (r != 0) {
@@ -1100,8 +1117,8 @@ update_oil(grid_t *grid, int x, int y)
     }
 
     temp_particle = get_particle(grid, left, above);
-    if (get_particle_type(temp_particle) == MAT_FLAME
-        || get_particle_type(temp_particle) == MAT_FIRE) {
+    if (temp_particle != NULL && (get_particle_type(temp_particle) == MAT_FLAME
+        || get_particle_type(temp_particle) == MAT_FIRE)) {
         /* 75% chance to ignite */
         r = rand() % 4;
         if (r != 0) {
@@ -1113,8 +1130,8 @@ update_oil(grid_t *grid, int x, int y)
     }
 
     temp_particle = get_particle(grid, x, above);
-    if (get_particle_type(temp_particle) == MAT_FLAME
-        || get_particle_type(temp_particle) == MAT_FIRE) {
+    if (temp_particle != NULL && (get_particle_type(temp_particle) == MAT_FLAME
+        || get_particle_type(temp_particle) == MAT_FIRE)) {
         /* 75% chance to ignite */
         r = rand() % 4;
         if (r != 0) {
@@ -1126,8 +1143,8 @@ update_oil(grid_t *grid, int x, int y)
     }
 
     temp_particle = get_particle(grid, right, above);
-    if (get_particle_type(temp_particle) == MAT_FLAME
-        || get_particle_type(temp_particle) == MAT_FIRE) {
+    if (temp_particle != NULL && (get_particle_type(temp_particle) == MAT_FLAME
+        || get_particle_type(temp_particle) == MAT_FIRE)) {
         /* 75% chance to ignite */
         r = rand() % 4;
         if (r != 0) {
@@ -1165,6 +1182,10 @@ update_oil(grid_t *grid, int x, int y)
 void
 update_wall(grid_t *grid, int x, int y)
 {
+    particle_t *curr_particle = get_particle(grid, x, y);
+
+    if (curr_particle == NULL) { return; }
+
     get_particle(grid, x, y)->has_been_updated = true;
 }
 
@@ -1178,9 +1199,11 @@ update_wood(grid_t *grid, int x, int y)
     particle_t *temp_particle = NULL;
     Vector2 temp_vel = curr_particle->velocity;
 
+    if (curr_particle == NULL) { return; }
+
     temp_particle = get_particle(grid, left, below);
-    if (get_particle_type(temp_particle) == MAT_FLAME
-        || get_particle_type(temp_particle) == MAT_FIRE) {
+    if (temp_particle != NULL && (get_particle_type(temp_particle) == MAT_FLAME
+        || get_particle_type(temp_particle) == MAT_FIRE)) {
         /* 50% chance to ignite */
         r = rand() % 2;
         if (r == 0) {
@@ -1192,8 +1215,8 @@ update_wood(grid_t *grid, int x, int y)
     }
 
     temp_particle = get_particle(grid, x, below);
-    if (get_particle_type(temp_particle) == MAT_FLAME
-        || get_particle_type(temp_particle) == MAT_FIRE) {
+    if (temp_particle != NULL && (get_particle_type(temp_particle) == MAT_FLAME
+        || get_particle_type(temp_particle) == MAT_FIRE)) {
         /* 50% chance to ignite */
         r = rand() % 2;
         if (r == 0) {
@@ -1205,8 +1228,8 @@ update_wood(grid_t *grid, int x, int y)
     }
 
     temp_particle = get_particle(grid, right, below);
-    if (get_particle_type(temp_particle) == MAT_FLAME
-        || get_particle_type(temp_particle) == MAT_FIRE) {
+    if (temp_particle != NULL && (get_particle_type(temp_particle) == MAT_FLAME
+        || get_particle_type(temp_particle) == MAT_FIRE)) {
         /* 50% chance to ignite */
         r = rand() % 2;
         if (r == 0) {
@@ -1218,8 +1241,8 @@ update_wood(grid_t *grid, int x, int y)
     }
 
     temp_particle = get_particle(grid, left, y);
-    if (get_particle_type(temp_particle) == MAT_FLAME
-        || get_particle_type(temp_particle) == MAT_FIRE) {
+    if (temp_particle != NULL && (get_particle_type(temp_particle) == MAT_FLAME
+        || get_particle_type(temp_particle) == MAT_FIRE)) {
         /* 50% chance to ignite */
         r = rand() % 2;
         if (r == 0) {
@@ -1231,8 +1254,8 @@ update_wood(grid_t *grid, int x, int y)
     }
 
     temp_particle = get_particle(grid, right, y);
-    if (get_particle_type(temp_particle) == MAT_FLAME
-        || get_particle_type(temp_particle) == MAT_FIRE) {
+    if (temp_particle != NULL && (get_particle_type(temp_particle) == MAT_FLAME
+        || get_particle_type(temp_particle) == MAT_FIRE)) {
         /* 50% chance to ignite */
         r = rand() % 2;
         if (r == 0) {
@@ -1244,8 +1267,8 @@ update_wood(grid_t *grid, int x, int y)
     }
 
     temp_particle = get_particle(grid, left, above);
-    if (get_particle_type(temp_particle) == MAT_FLAME
-        || get_particle_type(temp_particle) == MAT_FIRE) {
+    if (temp_particle != NULL && (get_particle_type(temp_particle) == MAT_FLAME
+        || get_particle_type(temp_particle) == MAT_FIRE)) {
         /* 50% chance to ignite */
         r = rand() % 2;
         if (r == 0) {
@@ -1257,8 +1280,8 @@ update_wood(grid_t *grid, int x, int y)
     }
 
     temp_particle = get_particle(grid, x, above);
-    if (get_particle_type(temp_particle) == MAT_FLAME
-        || get_particle_type(temp_particle) == MAT_FIRE) {
+    if (temp_particle != NULL && (get_particle_type(temp_particle) == MAT_FLAME
+        || get_particle_type(temp_particle) == MAT_FIRE)) {
         /* 50% chance to ignite */
         r = rand() % 2;
         if (r == 0) {
@@ -1270,8 +1293,8 @@ update_wood(grid_t *grid, int x, int y)
     }
 
     temp_particle = get_particle(grid, right, above);
-    if (get_particle_type(temp_particle) == MAT_FLAME
-        || get_particle_type(temp_particle) == MAT_FIRE) {
+    if (temp_particle != NULL && (get_particle_type(temp_particle) == MAT_FLAME
+        || get_particle_type(temp_particle) == MAT_FIRE)) {
         /* 50% chance to ignite */
         r = rand() % 2;
         if (r == 0) {
@@ -1290,6 +1313,8 @@ update_fire(grid_t *grid, int x, int y)
 {
     int r = rand() % 4;
     particle_t *curr_particle = get_particle(grid, x, y);
+
+    if (curr_particle == NULL) { return; }
 
     switch (r) {
         case 0:
@@ -1324,6 +1349,8 @@ update_flame(grid_t *grid, int x, int y)
     int above = y + 1;
     int left = x - 1, right = x + 1;
     particle_t *curr_particle = get_particle(grid, x, y);
+
+    if (curr_particle == NULL) { return; }
 
     curr_particle->life_time -= (float)rand() / (float)(RAND_MAX / 0.25f);
 
