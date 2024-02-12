@@ -442,8 +442,8 @@ Color get_color_from_mat(material_type m);
 int 
 main(void)
 {
-    const int grid_w = 256, grid_h = 256;
-    const int scr_w = 256, scr_h = 320;
+    const int grid_w = 512, grid_h = 512;
+    const int scr_w = 512, scr_h = 578;
     int x = 0, y = 0, i = 0;
     int prev_pos[2] = {0, 0};
     int curr_pos[2] = {0, 0};
@@ -467,12 +467,10 @@ main(void)
             /* Decrease the drawing size */
         /*}*/
 
-        if (IsKeyPressed(KEY_RIGHT)) {
+        if (IsKeyPressed(KEY_RIGHT))
             curr_mat = next_material(curr_mat);
-        }
-        else if (IsKeyPressed(KEY_LEFT)) {
+        else if (IsKeyPressed(KEY_LEFT))
             curr_mat = prev_material(curr_mat);
-        }
 
         if (IsMouseButtonDown(MOUSE_BUTTON_LEFT)) {
             particle_line(grid, prev_pos[0], prev_pos[1],
@@ -483,48 +481,55 @@ main(void)
                                 curr_pos[0], curr_pos[1], MAT_EMPTY);
         }
 
-        if (IsKeyPressed(KEY_C)) { clear_grid(grid); }
+        if (IsKeyPressed(KEY_C))
+            clear_grid(grid);
+
+        /**
+         * @note Two separate loops are used for grid updates. One for the
+         * actual particle interactions and a second for drawing particles.
+         * This is for simplicity because moving particles then drawing them
+         * was hard logic that I'm too dumb to figure out.
+         * Until I figure out how to update AND draw within the same loop
+         * again, this will have to be two loops
+         */
+        for (y = 0; y < grid_h; y++) {
+            for (x = 0; x < grid_w; x++) {
+                curr_particle = get_particle(grid, x, y);
+
+                if (curr_particle == NULL)
+                    continue;
+
+                if (curr_particle->has_been_updated)
+                    continue;
+
+                curr_particle->update_func(grid, x, y);
+            }
+        }
 
         BeginDrawing();
-        {
             ClearBackground((Color){64, 64, 64, 255});
-
-            /**
-             * @note Two separate loops are used for grid updates. One for the
-             * actual particle interactions and a second for drawing particles.
-             * This is for simplicity because moving particles then drawing them
-             * was hard logic that I'm too dumb to figure out.
-             * Until I figure out how to update AND draw within the same loop
-             * again, this will have to be two loops
-             */
-            for (y = 0; y < grid_h; y++) {
-                for (x = 0; x < grid_w; x++) {
-                    curr_particle = get_particle(grid, x, y);
-                    if (curr_particle == NULL) { continue; }
-                    if (curr_particle->has_been_updated) { continue; }
-                    curr_particle->update_func(grid, x, y);
-                }
-            }
-
-            for (y = 0; y < grid_h; y++) {
-                for (x = 0; x < grid_w; x++) {
-                    curr_particle = get_particle(grid, x, y);
-                    if (curr_particle == NULL) { continue; }
-                    curr_particle->has_been_updated = false;
-                    DrawPixel(x, grid_w - 1 - y, curr_particle->color);
-                }
-            }
 
             /* UI drawing code */
             DrawRectangle(0, grid_h, scr_w, scr_h - grid_h, DARKBLUE);
             DrawFPS(4, grid_h);
             DrawRectangle(4, grid_h + 20, 40, 40, get_color_from_mat(curr_mat));
 
+            for (y = 0; y < grid_h; y++) {
+                for (x = 0; x < grid_w; x++) {
+                    curr_particle = get_particle(grid, x, y);
+
+                    if (curr_particle == NULL)
+                        continue;
+
+                    curr_particle->has_been_updated = false;
+                    DrawPixel(x, grid_w - 1 - y, curr_particle->color);
+                }
+            }
+
             for (i = 1; i < MAT_COUNT; i++) {
                 DrawRectangle(30 + 20 * i, grid_h + 20, 15, 15,
                               get_color_from_mat(i));
             }
-        }
         EndDrawing();
 
         prev_pos[0] = curr_pos[0];
@@ -533,7 +538,6 @@ main(void)
 
     destroy_grid(grid);
     CloseWindow();
-
     return 0;
 }
 
@@ -619,9 +623,9 @@ clear_grid(grid_t *grid)
 particle_t *
 get_particle(const grid_t *grid, int x, int y)
 {
-    if (x < 0 || x >= grid->width || y < 0 || y >= grid->height) {
+    if (x < 0 || x >= grid->width || y < 0 || y >= grid->height)
         return NULL;
-    }
+
     return &grid->arr[y * grid->width + x];
 }
 
@@ -630,7 +634,8 @@ set_particle(grid_t *grid, int x, int y, particle_t *p)
 {
     int index = y * grid->width + x;
 
-    if (index < 0 || index > grid->width * grid->height) { return; }
+    if (index < 0 || index > grid->width * grid->height)
+        return;
 
     grid->arr[index].mat_type = p->mat_type;
     grid->arr[index].elem_type = p->elem_type;
@@ -651,9 +656,8 @@ material_type
 get_particle_type_pos(const grid_t *grid, int x, int y)
 {
     /* TODO: Fix this */
-    if (x < 0 || x >= grid->width || y < 0 || y >= grid->height) {
+    if (x < 0 || x >= grid->width || y < 0 || y >= grid->height)
         return MAT_EMPTY;
-    }
 
     return get_particle(grid, x, y)->mat_type;
 }
@@ -663,7 +667,8 @@ add_particle(grid_t *grid, int x, int y, material_type m)
 {
     particle_t part;
 
-    if (!is_pos_empty(grid, x, y)) { return; }
+    if (!is_pos_empty(grid, x, y))
+        return;
 
     part.mat_type = m;
     part.velocity = (Vector2){0.0f, 0.0f};
@@ -731,7 +736,8 @@ remove_particle(grid_t *grid, int x, int y)
 {
     particle_t empty_particle;
 
-    if (is_pos_empty(grid, x,  y)) { return; }
+    if (is_pos_empty(grid, x,  y))
+        return;
 
     empty_particle.mat_type = MAT_EMPTY;
     empty_particle.elem_type = ELEM_EMPTY;
@@ -761,10 +767,14 @@ swap_particles(grid_t *grid, int x1, int y1, int x2, int y2)
 void
 particle_line(grid_t *grid, int x1, int y1, int x2, int y2, material_type m)
 {
-    if (x1 > grid->width) { x1 = grid->width; }
-    if (x2 > grid->width) { x2 = grid->width; }
-    if (y1 > grid->height) { y1 = grid->height; }
-    if (y2 > grid->height) { y2 = grid->height; }
+    if (x1 > grid->width)
+        x1 = grid->width;
+    if (x2 > grid->width)
+        x2 = grid->width;
+    if (y1 > grid->height)
+        y1 = grid->height;
+    if (y2 > grid->height)
+        y2 = grid->height;
 
     int dx = abs(x2 - x1);
     int sx = x1 < x2 ? 1 : -1;
@@ -784,18 +794,23 @@ particle_line(grid_t *grid, int x1, int y1, int x2, int y2, material_type m)
     if (m == MAT_EMPTY) {
         while (1) {
             remove_particle(grid, x1, y1);
-            if (x1 == x2 && y1 == y2) { break; }
+            if (x1 == x2 && y1 == y2)
+                break;
 
             e2 = 2 * error;
 
             if (e2 >= dy) {
-                if (x1 == x2) { break; }
+                if (x1 == x2)
+                    break;
+
                 error += dy;
                 x1 += sx;
             }
 
             if (e2 <= dx) {
-                if (y1 == y2) { break; }
+                if (y1 == y2)
+                    break;
+
                 error += dx;
                 y1 += sy;
             }
@@ -804,18 +819,23 @@ particle_line(grid_t *grid, int x1, int y1, int x2, int y2, material_type m)
     else {
         while (1) {
             add_particle(grid, x1, y1, m);
-            if (x1 == x2 && y1 == y2) { break; }
+            if (x1 == x2 && y1 == y2)
+                break;
 
             e2 = 2 * error;
 
             if (e2 >= dy) {
-                if (x1 == x2) { break; }
+                if (x1 == x2)
+                    break;
+
                 error += dy;
                 x1 += sx;
             }
 
             if (e2 <= dx) {
-                if (y1 == y2) { break; }
+                if (y1 == y2)
+                    break;
+
                 error += dx;
                 y1 += sy;
             }
@@ -856,9 +876,8 @@ is_particle_gas(const particle_t *particle)
 bool
 is_pos_empty(const grid_t *grid, int x, int y)
 {
-    if (x < 0 || x >= grid->width || y < 0 || y >= grid->height) {
+    if (x < 0 || x >= grid->width || y < 0 || y >= grid->height)
         return false;
-    }
 
     return is_particle_empty(get_particle(grid, x, y));
 }
@@ -866,9 +885,8 @@ is_pos_empty(const grid_t *grid, int x, int y)
 bool 
 is_pos_static(const grid_t *grid, int x, int y)
 {
-    if (x < 0 || x >= grid->width || y < 0 || y >= grid->height) {
+    if (x < 0 || x >= grid->width || y < 0 || y >= grid->height)
         return false;
-    }
 
     return is_particle_static(get_particle(grid, x, y));
 }
@@ -876,9 +894,8 @@ is_pos_static(const grid_t *grid, int x, int y)
 bool 
 is_pos_solid(const grid_t *grid, int x, int y)
 {
-    if (x < 0 || x >= grid->width || y < 0 || y >= grid->height) {
+    if (x < 0 || x >= grid->width || y < 0 || y >= grid->height)
         return false;
-    }
 
     return is_particle_solid(get_particle(grid, x, y));
 }
@@ -886,9 +903,8 @@ is_pos_solid(const grid_t *grid, int x, int y)
 bool 
 is_pos_liquid(const grid_t *grid, int x, int y)
 {
-    if (x < 0 || x >= grid->width || y < 0 || y >= grid->height) {
+    if (x < 0 || x >= grid->width || y < 0 || y >= grid->height)
         return false;
-    }
 
     return is_particle_liquid(get_particle(grid, x, y));
 }
@@ -896,9 +912,8 @@ is_pos_liquid(const grid_t *grid, int x, int y)
 bool 
 is_pos_gas(const grid_t *grid, int x, int y)
 {
-    if (x < 0 || x >= grid->width || y < 0 || y >= grid->height) {
+    if (x < 0 || x >= grid->width || y < 0 || y >= grid->height)
         return false;
-    }
 
     return is_particle_gas(get_particle(grid, x, y));
 }
@@ -907,7 +922,8 @@ void update_empty(grid_t *grid, int x, int y)
 {
     particle_t *curr_particle = get_particle(grid, x, y);
 
-    if (curr_particle == NULL) { return; }
+    if (curr_particle == NULL)
+        return;
 
     curr_particle->has_been_updated = true;
 }
@@ -919,7 +935,8 @@ update_sand(grid_t *grid, int x, int y)
     int left  = x - 1, right = x + 1;
     particle_t *curr_particle = get_particle(grid, x, y);
 
-    if (curr_particle == NULL) { return; }
+    if (curr_particle == NULL)
+        return;
 
     if (y == 0) {
         curr_particle->has_been_updated = true;
@@ -954,7 +971,8 @@ update_water(grid_t *grid, int x, int y)
     int left  = x - 1, right = x + 1;
     particle_t *curr_particle = get_particle(grid, x, y);
 
-    if (curr_particle == NULL) { return; }
+    if (curr_particle == NULL)
+        return;
 
     if (is_pos_empty(grid, x, below)
         || is_pos_gas(grid, x, below)
@@ -994,7 +1012,8 @@ update_smoke(grid_t *grid, int x, int y)
     int left = x - 1, right = x + 1;
     particle_t *curr_particle = get_particle(grid, x, y);
 
-    if (curr_particle == NULL) { return; }
+    if (curr_particle == NULL)
+        return;
 
     if (y == grid->height) {
         curr_particle->has_been_updated = true;
@@ -1040,7 +1059,8 @@ update_oil(grid_t *grid, int x, int y)
     particle_t *temp_particle = NULL;
     Vector2 temp_vel = curr_particle->velocity;
 
-    if (curr_particle == NULL) { return; }
+    if (curr_particle == NULL)
+        return;
 
     /**
      * There are 8 checks of the particles around the oil to see if they are
@@ -1184,7 +1204,8 @@ update_wall(grid_t *grid, int x, int y)
 {
     particle_t *curr_particle = get_particle(grid, x, y);
 
-    if (curr_particle == NULL) { return; }
+    if (curr_particle == NULL)
+        return;
 
     get_particle(grid, x, y)->has_been_updated = true;
 }
@@ -1199,7 +1220,8 @@ update_wood(grid_t *grid, int x, int y)
     particle_t *temp_particle = NULL;
     Vector2 temp_vel = curr_particle->velocity;
 
-    if (curr_particle == NULL) { return; }
+    if (curr_particle == NULL)
+        return;
 
     temp_particle = get_particle(grid, left, below);
     if (temp_particle != NULL && (get_particle_type(temp_particle) == MAT_FLAME
@@ -1314,22 +1336,24 @@ update_fire(grid_t *grid, int x, int y)
     int r = rand() % 4;
     particle_t *curr_particle = get_particle(grid, x, y);
 
-    if (curr_particle == NULL) { return; }
+    if (curr_particle == NULL)
+        return;
 
     switch (r) {
         case 0:
             curr_particle->color = (Color){255, 0, 0, 255};
             break;
+
         case 1:
             curr_particle->color = (Color){192, 0, 0, 255};
             break;
+
         case 2:
             curr_particle->color = (Color){160, 0, 0, 255};
             break;
+
         case 3:
             curr_particle->color = (Color){64, 0, 0, 255};
-            break;
-        default:
             break;
     }
 
@@ -1350,7 +1374,8 @@ update_flame(grid_t *grid, int x, int y)
     int left = x - 1, right = x + 1;
     particle_t *curr_particle = get_particle(grid, x, y);
 
-    if (curr_particle == NULL) { return; }
+    if (curr_particle == NULL)
+        return;
 
     curr_particle->life_time -= (float)rand() / (float)(RAND_MAX / 0.25f);
 
@@ -1384,7 +1409,8 @@ update_flame(grid_t *grid, int x, int y)
 material_type 
 next_material(material_type m)
 {
-    if (m == MAT_COUNT - 1) { m = 0; }
+    if (m == MAT_COUNT - 1)
+        m = 0;
 
     return m + 1;
 }
@@ -1392,7 +1418,8 @@ next_material(material_type m)
 material_type 
 prev_material(material_type m)
 {
-    if (m == 1) { m = MAT_COUNT; }
+    if (m == 1)
+        m = MAT_COUNT;
 
     return m - 1;
 }
